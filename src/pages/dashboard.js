@@ -1,24 +1,38 @@
-import React from 'react';
-import Head from 'next/head'; 
-import Link from 'next/link';
-import { Container, Row, Col, Card, Navbar, Nav, Button, Table, Badge } from 'react-bootstrap';
+import React, { useEffect } from 'react';
+import Head from 'next/head';
+import { Container, Row, Col, Card, Navbar, Nav, Button, Table, Badge, Spinner } from 'react-bootstrap';
 import { FaStethoscope, FaSignOutAlt, FaCalendar, FaUser, FaClock, FaMapMarkerAlt } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/router';
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
 
   const handleLogout = () => {
     logout();
     router.push('/');
   };
 
-  if (!user) {
-    router.push('/login');
-    return null;
+  if (authLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center min-vh-100">
+        <Spinner animation="border" variant="primary" />
+      </div>
+    );
   }
+
+  if (!user) {
+    return null; // Redirección manejada por useEffect
+  }
+
+  // ... resto del código del dashboard ...
 
   // Datos de ejemplo para las citas
   const appointments = [

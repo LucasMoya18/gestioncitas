@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Container, Row, Col, Card, Navbar, Nav } from 'react-bootstrap';
+import { Container, Row, Col, Card, Navbar, Nav, Button } from 'react-bootstrap';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { useAuth } from "../context/AuthContext";
@@ -41,11 +41,9 @@ export default function HomePage() {
               {user ? (
                 <>
                   <Nav.Item className="ms-2">
-                    <Link href="/dashboard" passHref legacyBehavior>
-                      <Nav.Link className="btn btn-outline-primary fw-medium">
-                        Mi Dashboard
-                      </Nav.Link>
-                    </Link>
+                    <Nav.Link as={Link} href="/dashboard" className="btn btn-outline-primary fw-medium">
+                      Mi Dashboard
+                    </Nav.Link>
                   </Nav.Item>
                   <Nav.Item className="ms-2">
                     <Button variant="outline-danger" onClick={handleLogout} className="fw-medium">
@@ -57,20 +55,16 @@ export default function HomePage() {
               ) : (
                 <>
                   <Nav.Item className="ms-2">
-                    <Link href="/login" passHref legacyBehavior>
-                      <Nav.Link className="btn btn-primary fw-medium">
-                        <FaSignInAlt className="me-2" />
-                        Iniciar Sesión
-                      </Nav.Link>
-                    </Link>
+                    <Nav.Link as={Link} href="/login" className="btn btn-primary fw-medium">
+                      <FaSignInAlt className="me-2" />
+                      Iniciar Sesión
+                    </Nav.Link>
                   </Nav.Item>
                   <Nav.Item className="ms-2">
-                    <Link href="/register" passHref legacyBehavior>
-                      <Nav.Link className="btn btn-outline-primary fw-medium">
-                        <FaUserPlus className="me-2" />
-                        Registrarse
-                      </Nav.Link>
-                    </Link>
+                    <Nav.Link as={Link} href="/register" className="btn btn-outline-primary fw-medium">
+                      <FaUserPlus className="me-2" />
+                      Registrarse
+                    </Nav.Link>
                   </Nav.Item>
                 </>
               )}
@@ -347,5 +341,3 @@ export default function HomePage() {
     </>
   );
 }
-
-

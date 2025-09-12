@@ -5,6 +5,7 @@ import { Container, Row, Col, Card, Form, Button, Alert } from 'react-bootstrap'
 import { FaSignInAlt, FaArrowLeft } from 'react-icons/fa';
 import axios from 'axios';
 import { useRouter } from 'next/router';
+import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleChange = (e) => {
     setFormData({
@@ -32,6 +34,7 @@ export default function LoginPage() {
       // Guardar token o información de usuario (ajustar según respuesta de tu API)
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      login(response.data.user, response.data.token);
       router.push('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Error al iniciar sesión');
@@ -54,11 +57,9 @@ export default function LoginPage() {
               <Card className="shadow-sm">
                 <Card.Body className="p-5">
                     <div className="text-center mb-4">
-                        <Link href="/" passHref legacyBehavior>
-                            <a className="text-decoration-none d-inline-block mb-3">
+                        <Link href="/" className="text-decoration-none d-inline-block mb-3">
                             <FaArrowLeft className="me-2" />
                             Volver al inicio
-                            </a>
                         </Link>
                         <h2 className="fw-bold text-primary">Iniciar Sesión</h2>
                         <p className="text-muted">Accede a tu cuenta para gestionar tus citas</p>
