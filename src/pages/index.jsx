@@ -9,6 +9,7 @@ import { FaStethoscope, FaCalendarCheck, FaBell, FaUserMd, FaSignInAlt, FaUserPl
 export default function HomePage() {
   const [date, setDate] = useState(new Date());
 
+  
   return (
     <>
       <Head>
@@ -52,7 +53,6 @@ export default function HomePage() {
         </Container>
       </Navbar>
 
-      {/* Resto del contenido (igual que tu código) */}
       <div style={{ paddingTop: '76px' }}>
         {/* Hero Section */}
         <section className="pt-5 pb-5 bg-primary bg-gradient">
