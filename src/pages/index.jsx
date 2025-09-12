@@ -4,11 +4,16 @@ import Link from 'next/link';
 import { Container, Row, Col, Card, Navbar, Nav } from 'react-bootstrap';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
+import { useAuth } from "../context/AuthContext";
 import { FaStethoscope, FaCalendarCheck, FaBell, FaUserMd, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
 
 export default function HomePage() {
   const [date, setDate] = useState(new Date());
+  const { user, logout } = useAuth();
 
+  const handleLogout = () => {
+    logout();
+  };
   
   return (
     <>
@@ -32,22 +37,43 @@ export default function HomePage() {
               <Nav.Link href="#" className="text-dark fw-medium">Servicios</Nav.Link>
               <Nav.Link href="#" className="text-dark fw-medium">Médicos</Nav.Link>
               <Nav.Link href="#" className="text-dark fw-medium">Contacto</Nav.Link>
-              <Nav.Item className="ms-2">
-                <Link href="/login" passHref legacyBehavior>
-                  <Nav.Link className="btn btn-primary fw-medium">
-                    <FaSignInAlt className="me-2" />
-                    Iniciar Sesión
-                  </Nav.Link>
-                </Link>
-              </Nav.Item>
-              <Nav.Item className="ms-2">
-                <Link href="/register" passHref legacyBehavior>
-                  <Nav.Link className="btn btn-outline-primary fw-medium">
-                    <FaUserPlus className="me-2" />
-                    Registrarse
-                  </Nav.Link>
-                </Link>
-              </Nav.Item>
+              
+              {user ? (
+                <>
+                  <Nav.Item className="ms-2">
+                    <Link href="/dashboard" passHref legacyBehavior>
+                      <Nav.Link className="btn btn-outline-primary fw-medium">
+                        Mi Dashboard
+                      </Nav.Link>
+                    </Link>
+                  </Nav.Item>
+                  <Nav.Item className="ms-2">
+                    <Button variant="outline-danger" onClick={handleLogout} className="fw-medium">
+                      <FaSignOutAlt className="me-2" />
+                      Cerrar Sesión
+                    </Button>
+                  </Nav.Item>
+                </>
+              ) : (
+                <>
+                  <Nav.Item className="ms-2">
+                    <Link href="/login" passHref legacyBehavior>
+                      <Nav.Link className="btn btn-primary fw-medium">
+                        <FaSignInAlt className="me-2" />
+                        Iniciar Sesión
+                      </Nav.Link>
+                    </Link>
+                  </Nav.Item>
+                  <Nav.Item className="ms-2">
+                    <Link href="/register" passHref legacyBehavior>
+                      <Nav.Link className="btn btn-outline-primary fw-medium">
+                        <FaUserPlus className="me-2" />
+                        Registrarse
+                      </Nav.Link>
+                    </Link>
+                  </Nav.Item>
+                </>
+              )}
             </Nav>
           </Navbar.Collapse>
         </Container>

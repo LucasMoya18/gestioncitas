@@ -32,7 +32,7 @@ export default function LoginPage() {
       // Guardar token o información de usuario (ajustar según respuesta de tu API)
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      router.push('/');
+      router.push('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Error al iniciar sesión');
     } finally {
