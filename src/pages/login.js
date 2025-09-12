@@ -5,7 +5,7 @@ import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-b
 import { FaSignInAlt, FaArrowLeft } from 'react-icons/fa';
 import axios from 'axios';
 import { useRouter } from 'next/router';
-import { useAuth } from '../context/authcontext';
+import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
