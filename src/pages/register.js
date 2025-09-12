@@ -32,6 +32,7 @@ export default function RegisterPage() {
 
     try {
       const response = await axios.post('https://proyecto-production-c22e.up.railway.app/api/registrar/', formData);
+      
       // Redirigir a login después de registro exitoso
       router.push('/login');
     } catch (err) {

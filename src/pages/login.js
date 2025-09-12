@@ -3,9 +3,9 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaSignInAlt, FaArrowLeft } from 'react-icons/fa';
-import axios from 'axios';
 import { useRouter } from 'next/router';
-import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+import { useAuth } from '../context/authcontext';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -38,37 +38,20 @@ export default function LoginPage() {
 
     try {
       // LLAMADA REAL A LA API DE DJANGO - PARA PRODUCCIÓN
-      const response = await axios.post('https://proyecto-production-c22e.up.railway.app/api/login/', {
+      const response = await axios.post(`https://proyecto-production-c22e.up.railway.app/api/login/`, {
         rut: formData.rut,
         password: formData.password
       });
 
-      const { user: userData, token } = response.data;
 
-      // Guardar en contexto y cookies
+      const { user: userData, token } = response.data;
+      
       login(userData, token);
       router.push('/dashboard');
       
     } catch (err) {
-      // Manejo de errores específicos de la API
-      if (err.response) {
-        // Error de la API (4xx, 5xx)
-        if (err.response.status === 401) {
-          setError('RUT o contraseña incorrectos');
-        } else if (err.response.status === 400) {
-          setError('Datos de entrada inválidos');
-        } else if (err.response.status === 500) {
-          setError('Error del servidor. Por favor, intenta más tarde');
-        } else {
-          setError(err.response.data?.message || 'Error al iniciar sesión');
-        }
-      } else if (err.request) {
-        // Error de red (no se recibió respuesta)
-        setError('Error de conexión. Verifica tu internet');
-      } else {
-        // Error general
-        setError('Error inesperado al iniciar sesión');
-      }
+      setError('Error al iniciar sesión');
+      console.log(err)
       setLoading(false);
     }
   };
@@ -164,6 +147,14 @@ export default function LoginPage() {
                     <Link href="/register" className="text-decoration-none">
                       Regístrate aquí
                     </Link>
+                  </div>
+
+                  <div className="mt-4 p-3 bg-light rounded">
+                    <small className="text-muted">
+                      <strong>Datos de prueba:</strong><br/>
+                      RUT: 12.345.678-9<br/>
+                      Password: cualquier valor
+                    </small>
                   </div>
                 </Card.Body>
               </Card>

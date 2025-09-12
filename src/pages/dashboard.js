@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import Head from 'next/head';
 import { Container, Row, Col, Card, Navbar, Nav, Button, Table, Badge, Spinner } from 'react-bootstrap';
 import { FaStethoscope, FaSignOutAlt, FaCalendar, FaUser, FaClock, FaMapMarkerAlt } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authcontext';
 import { useRouter } from 'next/router';
 
 export default function Dashboard() {
@@ -101,7 +101,7 @@ export default function Dashboard() {
             </Col>
           </Row>
 
-
+          
           {/* User Profile Section */}
           <Row className="mb-5">
             <Col>

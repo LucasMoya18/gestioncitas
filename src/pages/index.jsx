@@ -5,7 +5,7 @@ import { Container, Row, Col, Card, Navbar, Nav, Button, Spinner } from 'react-b
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { FaStethoscope, FaCalendarCheck, FaBell, FaUserMd, FaSignInAlt, FaUserPlus, FaSignOutAlt } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authcontext';
 
 export default function HomePage() {
   const [date, setDate] = useState(new Date());
