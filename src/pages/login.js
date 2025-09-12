@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Container, Row, Col, Card, Form, Button, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaSignInAlt, FaArrowLeft } from 'react-icons/fa';
 import axios from 'axios';
 import { useRouter } from 'next/router';
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from '../context/authcontext';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -15,7 +15,14 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { login } = useAuth();
+  const { user, login, loading: authLoading } = useAuth();
+
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    if (user && !authLoading) {
+      router.push('/dashboard');
+    }
+  }, [user, authLoading, router]);
 
   const handleChange = (e) => {
     setFormData({
@@ -30,18 +37,58 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await axios.post('https://proyecto-production-c22e.up.railway.app/api/login/', formData);
-      // Guardar token o información de usuario (ajustar según respuesta de tu API)
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      login(response.data.user, response.data.token);
+      // LLAMADA REAL A LA API DE DJANGO - PARA PRODUCCIÓN
+      const response = await axios.post('https://proyecto-production-c22e.up.railway.app/api/login/', {
+        rut: formData.rut,
+        password: formData.password
+      });
+
+      const { user: userData, token } = response.data;
+
+      // Guardar en contexto y cookies
+      login(userData, token);
       router.push('/dashboard');
+      
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al iniciar sesión');
-    } finally {
+      // Manejo de errores específicos de la API
+      if (err.response) {
+        // Error de la API (4xx, 5xx)
+        if (err.response.status === 401) {
+          setError('RUT o contraseña incorrectos');
+        } else if (err.response.status === 400) {
+          setError('Datos de entrada inválidos');
+        } else if (err.response.status === 500) {
+          setError('Error del servidor. Por favor, intenta más tarde');
+        } else {
+          setError(err.response.data?.message || 'Error al iniciar sesión');
+        }
+      } else if (err.request) {
+        // Error de red (no se recibió respuesta)
+        setError('Error de conexión. Verifica tu internet');
+      } else {
+        // Error general
+        setError('Error inesperado al iniciar sesión');
+      }
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="bg-light min-vh-100 d-flex align-items-center justify-content-center">
+        <Spinner animation="border" variant="primary" />
+      </div>
+    );
+  }
+
+  if (user) {
+    return (
+      <div className="bg-light min-vh-100 d-flex align-items-center justify-content-center">
+        <Spinner animation="border" variant="primary" />
+        <span className="ms-2">Redirigiendo...</span>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -56,14 +103,14 @@ export default function LoginPage() {
             <Col md={6} lg={5}>
               <Card className="shadow-sm">
                 <Card.Body className="p-5">
-                    <div className="text-center mb-4">
-                        <Link href="/" className="text-decoration-none d-inline-block mb-3">
-                            <FaArrowLeft className="me-2" />
-                            Volver al inicio
-                        </Link>
-                        <h2 className="fw-bold text-primary">Iniciar Sesión</h2>
-                        <p className="text-muted">Accede a tu cuenta para gestionar tus citas</p>
-                    </div>
+                  <div className="text-center mb-4">
+                    <Link href="/" className="text-decoration-none d-inline-block mb-3">
+                      <FaArrowLeft className="me-2" />
+                      Volver al inicio
+                    </Link>
+                    <h2 className="fw-bold text-primary">Iniciar Sesión</h2>
+                    <p className="text-muted">Accede a tu cuenta para gestionar tus citas</p>
+                  </div>
 
                   {error && <Alert variant="danger">{error}</Alert>}
 
@@ -98,7 +145,12 @@ export default function LoginPage() {
                       className="w-100 py-2" 
                       disabled={loading}
                     >
-                      {loading ? 'Cargando...' : (
+                      {loading ? (
+                        <>
+                          <Spinner animation="border" size="sm" className="me-2" />
+                          Iniciando sesión...
+                        </>
+                      ) : (
                         <>
                           <FaSignInAlt className="me-2" />
                           Iniciar Sesión

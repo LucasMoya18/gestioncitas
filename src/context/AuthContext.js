@@ -1,9 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import Cookies from 'js-cookie';
 
 const AuthContext = createContext();
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
+  }
+  return context;
 }
 
 export function AuthProvider({ children }) {
@@ -11,32 +16,43 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar si hay usuario en localStorage al cargar
-    const savedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    
-    if (savedUser && savedUser !== 'undefined') {
+    // Verificar si hay usuario en cookies al cargar
+    const checkAuth = () => {
       try {
-        setUser(JSON.parse(savedUser));
+        const savedUser = Cookies.get('user');
+        const token = Cookies.get('token');
+        
+        if (savedUser && savedUser !== 'undefined') {
+          const parsedUser = JSON.parse(savedUser);
+          setUser(parsedUser);
+        }
       } catch (error) {
         console.error('Error parsing user data:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        Cookies.remove('user');
+        Cookies.remove('token');
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-    }
-    setLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
   const login = (userData, token) => {
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('token', token);
+    try {
+      setUser(userData);
+      Cookies.set('user', JSON.stringify(userData), { expires: 7 }); // 7 días
+      Cookies.set('token', token, { expires: 7 });
+    } catch (error) {
+      console.error('Error saving auth data:', error);
+    }
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    Cookies.remove('user');
+    Cookies.remove('token');
   };
 
   const value = {

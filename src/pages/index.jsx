@@ -1,20 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Container, Row, Col, Card, Navbar, Nav, Button } from 'react-bootstrap';
+import { Container, Row, Col, Card, Navbar, Nav, Button, Spinner } from 'react-bootstrap';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import { useAuth } from "../context/AuthContext";
-import { FaStethoscope, FaCalendarCheck, FaBell, FaUserMd, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
+import { FaStethoscope, FaCalendarCheck, FaBell, FaUserMd, FaSignInAlt, FaUserPlus, FaSignOutAlt } from 'react-icons/fa';
+import { useAuth } from '../context/authcontext';
 
 export default function HomePage() {
   const [date, setDate] = useState(new Date());
-  const { user, logout } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
 
   const handleLogout = () => {
     logout();
   };
-  
+
+  if (authLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center min-vh-100">
+        <Spinner animation="border" variant="primary" />
+      </div>
+    );
+  }
+
   return (
     <>
       <Head>
@@ -41,9 +49,11 @@ export default function HomePage() {
               {user ? (
                 <>
                   <Nav.Item className="ms-2">
-                    <Nav.Link as={Link} href="/dashboard" className="btn btn-outline-primary fw-medium">
-                      Mi Dashboard
-                    </Nav.Link>
+                    <Link href="/dashboard" passHref legacyBehavior>
+                      <Nav.Link className="btn btn-outline-primary fw-medium">
+                        Mi Dashboard
+                      </Nav.Link>
+                    </Link>
                   </Nav.Item>
                   <Nav.Item className="ms-2">
                     <Button variant="outline-danger" onClick={handleLogout} className="fw-medium">
@@ -55,16 +65,20 @@ export default function HomePage() {
               ) : (
                 <>
                   <Nav.Item className="ms-2">
-                    <Nav.Link as={Link} href="/login" className="btn btn-primary fw-medium">
-                      <FaSignInAlt className="me-2" />
-                      Iniciar Sesión
-                    </Nav.Link>
+                    <Link href="/login" passHref legacyBehavior>
+                      <Nav.Link className="btn btn-primary fw-medium">
+                        <FaSignInAlt className="me-2" />
+                        Iniciar Sesión
+                      </Nav.Link>
+                    </Link>
                   </Nav.Item>
                   <Nav.Item className="ms-2">
-                    <Nav.Link as={Link} href="/register" className="btn btn-outline-primary fw-medium">
-                      <FaUserPlus className="me-2" />
-                      Registrarse
-                    </Nav.Link>
+                    <Link href="/register" passHref legacyBehavior>
+                      <Nav.Link className="btn btn-outline-primary fw-medium">
+                        <FaUserPlus className="me-2" />
+                        Registrarse
+                      </Nav.Link>
+                    </Link>
                   </Nav.Item>
                 </>
               )}

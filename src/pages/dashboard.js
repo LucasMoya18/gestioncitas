@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import Head from 'next/head';
 import { Container, Row, Col, Card, Navbar, Nav, Button, Table, Badge, Spinner } from 'react-bootstrap';
 import { FaStethoscope, FaSignOutAlt, FaCalendar, FaUser, FaClock, FaMapMarkerAlt } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authcontext';
 import { useRouter } from 'next/router';
 
 export default function Dashboard() {
@@ -29,10 +29,8 @@ export default function Dashboard() {
   }
 
   if (!user) {
-    return null; // Redirección manejada por useEffect
+    return null;
   }
-
-  // ... resto del código del dashboard ...
 
   // Datos de ejemplo para las citas
   const appointments = [
@@ -57,7 +55,6 @@ export default function Dashboard() {
         <meta name="description" content="Panel de control del paciente" />
       </Head>
 
-      {/* Header */}
       <Navbar bg="white" expand="lg" fixed="top" className="shadow-sm">
         <Container>
           <Navbar.Brand href="/" className="fw-bold text-primary">
@@ -87,9 +84,13 @@ export default function Dashboard() {
           {/* Welcome Section */}
           <Row className="mb-5">
             <Col>
-              <div className="d-flex justify-content-between align-items-center">
+              <div className="d-flex justify-content-between align-items-center flex-wrap">
                 <div>
                   <h1 className="fw-bold text-primary">Bienvenido, {user.nombre}</h1>
+                  <p className="text-muted">
+                    {user.correo} • {user.rut}
+                    {user.telefono && ` • ${user.telefono}`}
+                  </p>
                   <p className="text-muted">Gestiona tus citas médicas de manera fácil y rápida</p>
                 </div>
                 <Badge bg="light" text="dark" className="fs-6 p-3">
@@ -100,6 +101,50 @@ export default function Dashboard() {
             </Col>
           </Row>
 
+          
+          {/* User Profile Section */}
+          <Row className="mb-5">
+            <Col>
+              <Card className="border-0 shadow-sm">
+                <Card.Header className="bg-white border-0">
+                  <h4 className="fw-bold mb-0">Mi Información</h4>
+                </Card.Header>
+                <Card.Body>
+                  <Row>
+                    <Col md={6}>
+                      <div className="mb-3">
+                        <label className="fw-semibold text-muted">Nombre completo</label>
+                        <p className="fs-5">{user.nombre}</p>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="mb-3">
+                        <label className="fw-semibold text-muted">RUT</label>
+                        <p className="fs-5">{user.rut}</p>
+                      </div>
+                    </Col>
+                  </Row>
+                  <Row>
+                    <Col md={6}>
+                      <div className="mb-3">
+                        <label className="fw-semibold text-muted">Correo electrónico</label>
+                        <p className="fs-5">{user.correo}</p>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="mb-3">
+                        <label className="fw-semibold text-muted">Teléfono</label>
+                        <p className="fs-5">{user.telefono || 'No especificado'}</p>
+                      </div>
+                    </Col>
+                  </Row>
+                  <Button variant="outline-primary" size="sm">
+                    Editar Información
+                  </Button>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
           {/* Stats Cards */}
           <Row className="mb-5">
             <Col md={4}>
