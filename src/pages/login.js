@@ -28,7 +28,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await axios.post('http://tu-api-django/login', formData);
+      const response = await axios.post('https://proyecto-production-c22e.up.railway.app/api/login', formData);
       // Guardar token o información de usuario (ajustar según respuesta de tu API)
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
