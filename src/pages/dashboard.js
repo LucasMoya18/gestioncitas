@@ -2,8 +2,11 @@ import React, { useEffect } from 'react';
 import Head from 'next/head';
 import { Container, Row, Col, Card, Navbar, Nav, Button, Table, Badge, Spinner } from 'react-bootstrap';
 import { FaStethoscope, FaSignOutAlt, FaCalendar, FaUser, FaClock, FaMapMarkerAlt } from 'react-icons/fa';
-import { useAuth } from '../context/authcontext';
+import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/router';
+import AgendarCita from "../components/AgendarCita";
+import AgendarCitaPaciente from "../components/AgendarCitaPaciente";
+import AgendarCitaScheduler from "../components/AgendarCitaScheduler";
 
 export default function Dashboard() {
   const { user, logout, loading: authLoading } = useAuth();
@@ -86,10 +89,10 @@ export default function Dashboard() {
             <Col>
               <div className="d-flex justify-content-between align-items-center flex-wrap">
                 <div>
-                  <h1 className="fw-bold text-primary">Bienvenido, {user.nombre}</h1>
+                  <h1 className="fw-bold text-primary">Bienvenido, {user.usuario.nombre}</h1>
                   <p className="text-muted">
-                    {user.correo} • {user.rut}
-                    {user.telefono && ` • ${user.telefono}`}
+                    {user.usuario.correo} • {user.usuario.rut}
+                    {user.usuario.telefono && ` • ${user.usuario.telefono}`}
                   </p>
                   <p className="text-muted">Gestiona tus citas médicas de manera fácil y rápida</p>
                 </div>
@@ -114,13 +117,13 @@ export default function Dashboard() {
                     <Col md={6}>
                       <div className="mb-3">
                         <label className="fw-semibold text-muted">Nombre completo</label>
-                        <p className="fs-5">{user.nombre}</p>
+                        <p className="fs-5">{user.usuario.nombre}</p>
                       </div>
                     </Col>
                     <Col md={6}>
                       <div className="mb-3">
                         <label className="fw-semibold text-muted">RUT</label>
-                        <p className="fs-5">{user.rut}</p>
+                        <p className="fs-5">{user.usuario.rut}</p>
                       </div>
                     </Col>
                   </Row>
@@ -128,13 +131,13 @@ export default function Dashboard() {
                     <Col md={6}>
                       <div className="mb-3">
                         <label className="fw-semibold text-muted">Correo electrónico</label>
-                        <p className="fs-5">{user.correo}</p>
+                        <p className="fs-5">{user.usuario.correo}</p>
                       </div>
                     </Col>
                     <Col md={6}>
                       <div className="mb-3">
                         <label className="fw-semibold text-muted">Teléfono</label>
-                        <p className="fs-5">{user.telefono || 'No especificado'}</p>
+                        <p className="fs-5">{user.usuario.telefono || 'No especificado'}</p>
                       </div>
                     </Col>
                   </Row>
@@ -254,6 +257,9 @@ export default function Dashboard() {
           </Row>
         </Container>
       </div>
+      <AgendarCita />
+      <AgendarCitaPaciente user={user} />
+      <AgendarCitaScheduler user={user}/>
     </>
   );
 }

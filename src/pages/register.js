@@ -3,8 +3,8 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { Container, Row, Col, Card, Form, Button, Alert } from 'react-bootstrap';
 import { FaUserPlus, FaArrowLeft } from 'react-icons/fa';
-import axios from 'axios';
 import { useRouter } from 'next/router';
+import { registerPaciente } from '../controllers/registerController';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -31,12 +31,12 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      const response = await axios.post('https://proyecto-production-c22e.up.railway.app/api/registrar/', formData);
+      await registerPaciente(formData);
       
       // Redirigir a login después de registro exitoso
       router.push('/login');
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al registrar usuario');
+      setError(err);
     } finally {
       setLoading(false);
     }

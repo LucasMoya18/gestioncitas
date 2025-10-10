@@ -5,7 +5,8 @@ import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-b
 import { FaSignInAlt, FaArrowLeft } from 'react-icons/fa';
 import { useRouter } from 'next/router';
 import axios from 'axios';
-import { useAuth } from '../context/authcontext';
+import { useAuth } from '../context/AuthContext';
+import { loginPaciente } from '../controllers/loginController';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -35,23 +36,12 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
-      // LLAMADA REAL A LA API DE DJANGO - PARA PRODUCCIÓN
-      const response = await axios.post(`https://proyecto-production-c22e.up.railway.app/api/login/`, {
-        rut: formData.rut,
-        password: formData.password
-      });
-
-
-      const { user: userData, token } = response.data;
-      
+      const { user: userData, token } = await loginPaciente(formData.rut, formData.password);
       login(userData, token);
       router.push('/dashboard');
-      
     } catch (err) {
-      setError('Error al iniciar sesión');
-      console.log(err)
+      setError(err);
       setLoading(false);
     }
   };
