@@ -1,52 +1,76 @@
+// src/controllers/agendarCitaController.js
+
+const API_URL = "http://10.60.49.17:8000/api"; // URL base de tu API de Django
+
 export const agendarCitaController = {
-  async getPacientes() {
-    const res = await fetch("http://10.60.49.43:8000/api/pacientes");
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data;
-  },
+  /**
+   * Obtiene la lista de todos los médicos.
+   */
   async getMedicos() {
-    const res = await fetch("http://10.60.49.43:8000/api/medicos");
-    if (!res.ok) return [];
-    return await res.json();
+    try {
+      const res = await fetch(`${API_URL}/medicos/`);
+      if (!res.ok) {
+        console.error("Error al obtener los médicos:", res.statusText);
+        return [];
+      }
+      return await res.json();
+    } catch (error) {
+      console.error("Error de red al obtener médicos:", error);
+      return [];
+    }
   },
-  async registrarUsuarioPorRut(rut) {
-    // Registra usuario mínimo con rut y rol Paciente
-    const body = {
-      usuario: {
-        nombre: "Paciente",
-        correo: `${rut}@mail.com`,
-        password: rut, // Puedes pedir contraseña real
-        telefono: "",
-        rut,
-        rol: "Paciente",
-      },
-      direccion: "",
-    };
-    const res = await fetch("http://10.60.49.43:8000/api/registrar/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    return await res.json();
+
+  /**
+   * Obtiene todas las citas existentes para mostrarlas en el calendario.
+   */
+  async getCitas() {
+    try {
+      const res = await fetch(`${API_URL}/citas/`);
+      if (!res.ok) {
+        console.error("Error al obtener las citas:", res.statusText);
+        return [];
+      }
+      return await res.json();
+    } catch (error) {
+      console.error("Error de red al obtener citas:", error);
+      return [];
+    }
   },
-  async agendarCitaPaciente({ rut, medico, fechaHora, prioridad }) {
-    // Busca el paciente por rut para obtener el ID
-    const pacientesRes = await fetch("http://10.60.49.43:8000/api/pacientes");
-    const pacientes = await pacientesRes.json();
-    const pacienteObj = pacientes.find((p) => p.usuario.rut === rut);
-    if (!pacienteObj) return { error: "Paciente no encontrado" };
+
+  /**
+   * Registra una nueva cita en el sistema.
+   * @param {object} citaData - Los datos de la cita.
+   * @param {number} citaData.paciente - El ID del usuario paciente.
+   * @param {number} citaData.medico - El ID del usuario médico.
+   * @param {string} citaData.fechaHora - La fecha y hora en formato ISO string.
+   */
+  async agendarCita(citaData) {
+    const { paciente, medico, fechaHora } = citaData;
+
+    if (!paciente || !medico || !fechaHora) {
+      return { error: "Faltan datos para agendar la cita" };
+    }
+
     const body = {
-      paciente: pacienteObj.usuario.id,
-      medico,
+      paciente, // ID del paciente
+      medico,   // ID del médico
       fechaHora,
-      prioridad,
+      // El estado y prioridad se asignan por defecto en Django
     };
-    const res = await fetch("http://10.60.49.43:8000/api/citas/", {
+
+    const res = await fetch(`${API_URL}/citas/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    return await res.json();
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        // Devuelve el objeto de error que viene de Django si existe
+        return { error: data.detail || "Ocurrió un error en el servidor" };
+    }
+
+    return data; // Devuelve la cita creada
   },
 };

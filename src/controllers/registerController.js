@@ -13,7 +13,7 @@ export async function registerPaciente(formData) {
     direccion: formData.direccion || ""
   };
   try {
-    const response = await axios.post('http://10.60.49.43:8000/api/registrar/', payload);
+    const response = await axios.post('http://10.60.49.17:8000/api/registrar/', payload);
     return response.data;
   } catch (err) {
     throw err.response?.data?.error || 'Error al registrar usuario';

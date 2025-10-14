@@ -4,10 +4,7 @@ import { Container, Row, Col, Card, Navbar, Nav, Button, Table, Badge, Spinner }
 import { FaStethoscope, FaSignOutAlt, FaCalendar, FaUser, FaClock, FaMapMarkerAlt } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/router';
-import AgendarCita from "../components/AgendarCita";
-import AgendarCitaPaciente from "../components/AgendarCitaPaciente";
-import AgendarCitaScheduler from "../components/AgendarCitaScheduler";
-
+import AppointmentCalendar from '@/components/appointments/AppointmentCalendar';
 export default function Dashboard() {
   const { user, logout, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -257,9 +254,8 @@ export default function Dashboard() {
           </Row>
         </Container>
       </div>
-      <AgendarCita />
-      <AgendarCitaPaciente user={user} />
-      <AgendarCitaScheduler user={user}/>
+      <AppointmentCalendar />
+      
     </>
   );
 }

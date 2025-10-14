@@ -24,3 +24,31 @@
 .min-vh-100 {
   min-height: 100vh;
 }
+
+/* Fondo difuminado y centrado para el modal */
+.modal-backdrop-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s;
+}
+
+/* Opcional: animación de entrada */
+.modal-dialog {
+  animation: modalFadeIn 0.3s;
+}
+
+@keyframes modalFadeIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-content {
+  background: #fff !important;
+  /* Puedes agregar sombra si quieres */
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
