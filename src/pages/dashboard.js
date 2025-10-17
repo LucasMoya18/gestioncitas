@@ -1,24 +1,33 @@
 import React, { useEffect } from 'react';
 import Head from 'next/head';
+import Link from "next/link";
+import { useRouter } from 'next/router';
+import { useAuth } from '../context/AuthContext';
+
 import { Container, Row, Col, Card, Navbar, Nav, Button, Table, Badge, Spinner } from 'react-bootstrap';
 import { FaStethoscope, FaSignOutAlt, FaCalendar, FaUser, FaClock, FaMapMarkerAlt } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
-import { useRouter } from 'next/router';
-import AppointmentCalendar from '@/components/appointments/AppointmentCalendar';
-export default function Dashboard() {
-  const { user, logout, loading: authLoading } = useAuth();
-  const router = useRouter();
 
+import AppointmentCalendar from '@/components/appointments/AppointmentCalendar';
+import AdminPanel from '@/components/admin/AdminPanel'
+
+export default function Dashboard() {
+  const { user, logout, loading: authLoading, getUserData, isAdmin } = useAuth();
+  const router = useRouter();
+  
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
     }
+    // Debug log
+    console.log("User data:", user);
   }, [user, authLoading, router]);
 
   const handleLogout = () => {
     logout();
     router.push('/');
   };
+
+
 
   if (authLoading) {
     return (
@@ -30,6 +39,19 @@ export default function Dashboard() {
 
   if (!user) {
     return null;
+  }
+
+  const userData = getUserData();
+  
+  // Verificación adicional
+  if (!userData) {
+    console.error("No se pudo obtener datos del usuario:", user);
+    return (
+      <div className="text-center p-5">
+        <p>Error cargando datos del usuario</p>
+        <Button variant="primary" onClick={handleLogout}>Cerrar Sesión</Button>
+      </div>
+    );
   }
 
   // Datos de ejemplo para las citas
@@ -86,22 +108,20 @@ export default function Dashboard() {
             <Col>
               <div className="d-flex justify-content-between align-items-center flex-wrap">
                 <div>
-                  <h1 className="fw-bold text-primary">Bienvenido, {user.usuario.nombre}</h1>
+                  <h1 className="fw-bold text-primary">Bienvenido, {userData?.nombre || 'Usuario'}</h1>
                   <p className="text-muted">
-                    {user.usuario.correo} • {user.usuario.rut}
-                    {user.usuario.telefono && ` • ${user.usuario.telefono}`}
+                    {userData?.correo || 'Sin correo'} • {userData?.rut || 'Sin RUT'}
+                    {userData?.telefono && ` • ${userData.telefono}`}
                   </p>
-                  <p className="text-muted">Gestiona tus citas médicas de manera fácil y rápida</p>
                 </div>
                 <Badge bg="light" text="dark" className="fs-6 p-3">
                   <FaUser className="me-2" />
-                  Paciente
+                  {userData?.rol || 'Usuario'}
                 </Badge>
               </div>
             </Col>
           </Row>
 
-          
           {/* User Profile Section */}
           <Row className="mb-5">
             <Col>
@@ -114,13 +134,13 @@ export default function Dashboard() {
                     <Col md={6}>
                       <div className="mb-3">
                         <label className="fw-semibold text-muted">Nombre completo</label>
-                        <p className="fs-5">{user.usuario.nombre}</p>
+                        <p className="fs-5">{userData?.nombre || '—'}</p>
                       </div>
                     </Col>
                     <Col md={6}>
                       <div className="mb-3">
                         <label className="fw-semibold text-muted">RUT</label>
-                        <p className="fs-5">{user.usuario.rut}</p>
+                        <p className="fs-5">{userData?.rut || '—'}</p>
                       </div>
                     </Col>
                   </Row>
@@ -128,13 +148,13 @@ export default function Dashboard() {
                     <Col md={6}>
                       <div className="mb-3">
                         <label className="fw-semibold text-muted">Correo electrónico</label>
-                        <p className="fs-5">{user.usuario.correo}</p>
+                        <p className="fs-5">{userData?.correo || '—'}</p>
                       </div>
                     </Col>
                     <Col md={6}>
                       <div className="mb-3">
                         <label className="fw-semibold text-muted">Teléfono</label>
-                        <p className="fs-5">{user.usuario.telefono || 'No especificado'}</p>
+                        <p className="fs-5">{userData?.telefono || 'No especificado'}</p>
                       </div>
                     </Col>
                   </Row>
@@ -230,17 +250,29 @@ export default function Dashboard() {
             </Col>
           </Row>
 
-          {/* Quick Actions */}
+          {/* Admin panel: solo visible para administradores */}
+          {isAdmin && (
+            <Row className="mb-4">
+              <Col>
+                <AdminPanel />
+              </Col>
+            </Row>
+          )}
+
           <Row className="mt-5">
             <Col>
               <Card className="border-0 shadow-sm">
                 <Card.Body className="text-center p-5">
                   <h3 className="fw-bold mb-4">¿Qué deseas hacer?</h3>
                   <div className="d-flex justify-content-center gap-3 flex-wrap">
-                    <Button variant="primary" size="lg" className="px-4">
-                      <FaCalendar className="me-2" />
-                      Agendar Nueva Cita
-                    </Button>
+                    <Link href="/agendar-cita" legacyBehavior>
+                      <a>
+                        <Button variant="primary" size="lg" className="px-4">
+                          <FaCalendar className="me-2" />
+                          Agendar Nueva Cita
+                        </Button>
+                      </a>
+                    </Link>
                     <Button variant="outline-primary" size="lg" className="px-4">
                       Ver Historial Completo
                     </Button>
@@ -253,9 +285,9 @@ export default function Dashboard() {
             </Col>
           </Row>
         </Container>
+
+        <AppointmentCalendar />
       </div>
-      <AppointmentCalendar />
-      
     </>
   );
 }

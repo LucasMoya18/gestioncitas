@@ -52,3 +52,61 @@
   /* Puedes agregar sombra si quieres */
   box-shadow: 0 8px 32px rgba(0,0,0,0.25);
 }
+
+/* estilos compactos y modernos para el formulario de agendar cita */
+
+.appointment-booking-container {
+  --card-radius: 12px;
+  --primary: #2563eb;
+  padding-bottom: 3rem;
+}
+
+.booking-card {
+  max-width: 920px;
+  margin: 0 auto;
+  border-radius: var(--card-radius);
+  overflow: hidden;
+}
+
+.booking-header {
+  background: linear-gradient(90deg, rgba(37,99,235,0.12), rgba(34,197,94,0.06));
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+
+.compact-form .form-control-sm,
+.compact-form .form-select,
+.compact-form textarea {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(16,24,40,0.08);
+}
+
+.booking-card .modal-header,
+.booking-card .modal-footer {
+  border: 0;
+}
+
+.btn-cta {
+  background: linear-gradient(90deg,#16a34a,#2563eb);
+  border: none;
+  padding: 0.45rem 1rem;
+  box-shadow: 0 6px 18px rgba(37,99,235,0.12);
+}
+
+.btn-cta:hover {
+  transform: translateY(-1px);
+}
+
+/* compact spacing for small screens */
+@media (max-width: 575px) {
+  .booking-card { margin: 0.5rem; }
+  .compact-form .form-control-sm,
+  .compact-form .form-select { font-size: 0.85rem; padding: 0.4rem; }
+}
+
+/* keep bootstrap modal-content white if overwritten elsewhere */
+.modal-content {
+  background: #ffffff !important;
+}

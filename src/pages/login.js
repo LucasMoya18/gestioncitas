@@ -6,7 +6,7 @@ import { FaSignInAlt, FaArrowLeft } from 'react-icons/fa';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { loginPaciente } from '../controllers/loginController';
+import { loginUsuario } from '../controllers/loginController';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -25,10 +25,26 @@ export default function LoginPage() {
     }
   }, [user, authLoading, router]);
 
+  const formatRut = (value) => {
+    if (!value) return ''
+    let v = value.toString().toUpperCase().replace(/[^0-9Kk]/g, '')
+    if (v.length === 1) return v
+    const verifier = v.slice(-1)
+    let numbers = v.slice(0, -1).replace(/\D/g, '')
+    const rev = numbers.split('').reverse().join('')
+    const grouped = rev.match(/.{1,3}/g)?.join('.').split('').reverse().join('') || numbers
+    return `${grouped}-${verifier}`
+  }
+
+  const normalizeRut = (formatted) => {
+    if (!formatted) return ''
+    return formatted.toString().replace(/\./g, '').replace(/-/g, '').toUpperCase()
+  }
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.name === 'rut' ? formatRut(e.target.value) : e.target.value
     });
   };
 
@@ -37,7 +53,10 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      const { user: userData, token } = await loginPaciente(formData.rut, formData.password);
+      // usar rut normalizado para autenticación
+      const rutNormalized = normalizeRut(formData.rut)
+      console.log(rutNormalized)
+      const { user: userData, token } = await loginUsuario(rutNormalized, formData.password);
       login(userData, token);
       router.push('/dashboard');
     } catch (err) {

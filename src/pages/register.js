@@ -18,10 +18,38 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // formatea RUT a 11.111.111-3 (cuando tenga al menos 2 caracteres)
+  const formatRut = (value) => {
+    if (!value) return ''
+    // limpiar y permitir K
+    let v = value.toString().toUpperCase().replace(/[^0-9Kk]/g, '')
+    if (v.length === 1) return v
+    const verifier = v.slice(-1)
+    let numbers = v.slice(0, -1).replace(/\D/g, '')
+    if (!numbers) return `${verifier}`
+    // agrupar cada 3 desde la derecha
+    const rev = numbers.split('').reverse().join('')
+    const grouped = rev.match(/.{1,3}/g)?.join('.').split('').reverse().join('') || numbers
+    return `${grouped}-${verifier}`
+  }
+
+  const normalizeRut = (formatted) => {
+    if (!formatted) return ''
+    return formatted.toString().replace(/\./g, '').replace(/-/g, '').toUpperCase()
+  }
+
   const handleChange = (e) => {
+    const { name, value } = e.target
+    if (name === 'rut') {
+      setFormData({
+        ...formData,
+        rut: formatRut(value)
+      })
+      return
+    }
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
   };
 
@@ -31,7 +59,9 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      await registerPaciente(formData);
+      // enviar rut normalizado al backend (sin puntos ni guión)
+      const payload = { ...formData, rut: normalizeRut(formData.rut) }
+      await registerPaciente(payload);
       
       // Redirigir a login después de registro exitoso
       router.push('/login');
