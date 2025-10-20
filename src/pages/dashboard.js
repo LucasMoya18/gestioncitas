@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
-import Link from "next/link";
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-
-import { Container, Row, Col, Card, Navbar, Nav, Button, Table, Badge, Spinner, Alert, Tabs, Tab } from 'react-bootstrap';
+import Link from 'next/link';
+import { Container, Row, Col, Card, Navbar, Nav, Button, Table, Badge, Spinner, Alert, Tabs, Tab, Form, Pagination, InputGroup } from 'react-bootstrap';
 import { FaStethoscope, FaSignOutAlt, FaCalendar, FaUser, FaClock, FaMapMarkerAlt, FaCheckCircle, FaExclamationTriangle, FaUserShield } from 'react-icons/fa';
 
 import AppointmentCalendar from '@/components/appointments/AppointmentCalendar';
@@ -23,7 +22,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("citas");
-  
+
+  // Controles de orden y paginación
+  const [sortOrder, setSortOrder] = useState('desc'); // 'desc' | 'asc'
+  const [perPage, setPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+
   useEffect(() => {
     if (user) {
       const userData = getUserData();
@@ -34,6 +38,40 @@ export default function Dashboard() {
       cargarCitas();
     }
   }, [user]);
+
+  useEffect(() => {
+    // Reiniciar página al cambiar citas o tamaño de página
+    setCurrentPage(1);
+  }, [citas, perPage]);
+
+  const handleSortChange = (e) => {
+    setSortOrder(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handlePerPageChange = (e) => {
+    let v = parseInt(e.target.value, 10);
+    if (isNaN(v) || v <= 0) v = 1;
+    if (v > 100) v = 100;
+    setPerPage(v);
+    setCurrentPage(1);
+  };
+
+  // Ordenar por fecha
+  const sortedCitas = [...citas].sort((a, b) => {
+    const da = new Date(a.fechaHora);
+    const db = new Date(b.fechaHora);
+    return sortOrder === 'desc' ? db - da : da - db;
+  });
+
+  // Paginación
+  const total = sortedCitas.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIdx = (safePage - 1) * perPage;
+  const pagedCitas = sortedCitas.slice(startIdx, startIdx + perPage);
+  const showingFrom = total === 0 ? 0 : startIdx + 1;
+  const showingTo = Math.min(startIdx + perPage, total);
 
   const cargarCitas = async () => {
     try {
@@ -305,20 +343,42 @@ export default function Dashboard() {
             {/* Tab: Mis Citas */}
             <Tab eventKey="citas" title={<span><FaCalendar className="me-2" />Mis Citas</span>}>
               <Card className="border-0 shadow-sm">
-                <Card.Header className="bg-white border-0 d-flex justify-content-between align-items-center">
+                <Card.Header className="bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <h4 className="fw-bold mb-0">
                     {isMedico ? 'Mis Pacientes' : 'Mis Próximas Citas'}
                   </h4>
-                  <Button 
-                    variant="outline-primary" 
-                    size="sm" 
-                    onClick={cargarCitas}
-                  >
-                    Actualizar
-                  </Button>
+                  <div className="d-flex align-items-center gap-2">
+                    <Form.Select size="sm" value={sortOrder} onChange={handleSortChange}>
+                      <option value="desc">Más nuevas primero</option>
+                      <option value="asc">Más antiguas primero</option>
+                    </Form.Select>
+                    <InputGroup size="sm" style={{ width: 160 }}>
+                      <InputGroup.Text>Por página</InputGroup.Text>
+                      <Form.Control
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={perPage}
+                        onChange={handlePerPageChange}
+                      />
+                    </InputGroup>
+                    <Button 
+                      variant="outline-primary" 
+                      size="sm" 
+                      onClick={cargarCitas}
+                    >
+                      Actualizar
+                    </Button>
+                  </div>
                 </Card.Header>
                 <Card.Body>
-                  {citas.length === 0 ? (
+                  <div className="d-flex justify-content-between align-items-center flex-wrap mb-2">
+                    <small className="text-muted">
+                      Mostrando {showingFrom}-{showingTo} de {total}
+                    </small>
+                  </div>
+
+                  {pagedCitas.length === 0 ? (
                     <div className="text-center py-5">
                       <FaCalendar className="text-muted mb-3" size={50} />
                       <p className="text-muted">No tienes citas agendadas</p>
@@ -327,64 +387,80 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   ) : (
-                    <Table responsive hover>
-                      <thead>
-                        <tr>
-                          {isMedico ? (
-                            <>
-                              <th>Paciente</th>
-                              <th>Especialidad</th>
-                              <th>Fecha</th>
-                              <th>Hora</th>
-                              <th>Box</th>
-                              <th>Estado</th>
-                              <th>Descripción</th>
-                            </>
-                          ) : (
-                            <>
-                              <th>Médico</th>
-                              <th>Especialidad</th>
-                              <th>Fecha</th>
-                              <th>Hora</th>
-                              <th>Box</th>
-                              <th>Estado</th>
-                              <th>Descripción</th>
-                            </>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {citas.map((cita) => (
-                          <tr key={cita.id}>
-                            <td className="fw-semibold">
-                              {isMedico 
-                                ? (cita.paciente_nombre || `Paciente #${cita.paciente}`)
-                                : (cita.medico_nombre ? `Dr(a). ${cita.medico_nombre}` : `Médico #${cita.medico}`)
-                              }
-                            </td>
-                            <td>{cita.especialidad_nombre || 'Sin especialidad'}</td>
-                            <td>{formatFecha(cita.fechaHora)}</td>
-                            <td>{formatHora(cita.fechaHora)}</td>
-                            <td>
-                              <Badge bg="info" className="text-white">
-                                {cita.box_nombre || 'Sin box'}
-                              </Badge>
-                            </td>
-                            <td>
-                              <Badge bg={getStatusVariant(cita.estado)}>
-                                {getStatusIcon(cita.estado)}
-                                {cita.estado}
-                              </Badge>
-                            </td>
-                            <td>
-                              <small className="text-muted">
-                                {cita.descripcion || 'Sin descripción'}
-                              </small>
-                            </td>
+                    <>
+                      <Table responsive hover>
+                        <thead>
+                          <tr>
+                            {isMedico ? (
+                              <>
+                                <th>Paciente</th>
+                                <th>Especialidad</th>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                                <th>Box</th>
+                                <th>Estado</th>
+                                <th>Descripción</th>
+                              </>
+                            ) : (
+                              <>
+                                <th>Médico</th>
+                                <th>Especialidad</th>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                                <th>Box</th>
+                                <th>Estado</th>
+                                <th>Descripción</th>
+                              </>
+                            )}
                           </tr>
-                        ))}
-                      </tbody>
-                    </Table>
+                        </thead>
+                        <tbody>
+                          {pagedCitas.map((cita) => (
+                            <tr key={cita.id}>
+                              <td className="fw-semibold">
+                                {isMedico 
+                                  ? (cita.paciente_nombre || `Paciente #${cita.paciente}`)
+                                  : (cita.medico_nombre ? `Dr(a). ${cita.medico_nombre}` : `Médico #${cita.medico}`)}
+                              </td>
+                              <td>{cita.especialidad_nombre || 'Sin especialidad'}</td>
+                              <td>{formatFecha(cita.fechaHora)}</td>
+                              <td>{formatHora(cita.fechaHora)}</td>
+                              <td>
+                                <Badge bg="info" className="text-white">
+                                  {cita.box_nombre || 'Sin box'}
+                                </Badge>
+                              </td>
+                              <td>
+                                <Badge bg={getStatusVariant(cita.estado)}>
+                                  {getStatusIcon(cita.estado)}
+                                  {cita.estado}
+                                </Badge>
+                              </td>
+                              <td>
+                                <small className="text-muted">
+                                  {cita.descripcion || 'Sin descripción'}
+                                </small>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+
+                      {/* Paginador */}
+                      <div className="d-flex justify-content-center">
+                        <Pagination className="mb-0">
+                          <Pagination.First onClick={() => setCurrentPage(1)} disabled={safePage === 1} />
+                          <Pagination.Prev onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safePage === 1} />
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                            <Pagination.Item key={p} active={p === safePage} onClick={() => setCurrentPage(p)}>
+                              {p}
+                            </Pagination.Item>
+                          ))}
+                          <Pagination.Next onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} />
+                          <Pagination.Last onClick={() => setCurrentPage(totalPages)} disabled={safePage === totalPages} />
+                        </Pagination>
+                      </div>
+                    </>
                   )}
                 </Card.Body>
               </Card>
@@ -429,12 +505,7 @@ export default function Dashboard() {
               </Card>
             </Tab>
 
-            {/* Tab: Administración (se oculta para Admin porque ya está arriba) */}
-            {/* {!isAdmin && (
-              <Tab eventKey="admin" title={<span><FaUserShield className="me-2" />Administración</span>}>
-                <AdminPanel />
-              </Tab>
-            )} */}
+            
           </Tabs>
 
           {/* Action Card */}

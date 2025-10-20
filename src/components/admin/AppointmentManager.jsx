@@ -1,24 +1,7 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Table,
-  Button,
-  Badge,
-  Form,
-  Modal,
-  Spinner,
-  Alert,
-  ButtonGroup,
-  InputGroup,
-  Dropdown,
-  OverlayTrigger,
-  Tooltip
-} from "react-bootstrap"
+import { useState, useEffect, useMemo } from "react";
+import { Table, Form, Pagination, Button, Badge, Card, InputGroup, Spinner, Alert, Row, Col, Container, Modal, ButtonGroup, Dropdown, OverlayTrigger, Tooltip } from "react-bootstrap";
 import {
   FaCalendarCheck,
   FaCalendarTimes,
@@ -39,7 +22,6 @@ import { agendarCitaController } from "../../controllers/agendarCitaController"
 
 export default function AppointmentManager() {
   const [citas, setCitas] = useState([])
-  const [filteredCitas, setFilteredCitas] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -60,9 +42,18 @@ export default function AppointmentManager() {
     estado: "Pendiente"
   })
 
+  // Controles de orden y paginación
+  const [sortOrder, setSortOrder] = useState('desc'); // 'desc' | 'asc'
+  const [perPage, setPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+
   useEffect(() => {
     loadCitas()
   }, [])
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [citas, perPage]);
 
   useEffect(() => {
     applyFilters()
@@ -113,8 +104,38 @@ export default function AppointmentManager() {
       })
     }
 
-    setFilteredCitas(filtered)
+    // No sobre-escribir citas, retornar el filtrado
+    return filtered
   }
+
+  // Aplicar filtros primero, luego ordenar y paginar
+  const filteredCitas = applyFilters()
+
+  const sortedCitas = useMemo(() => {
+    const arr = [...filteredCitas];
+    arr.sort((a, b) => {
+      const da = new Date(a.fechaHora);
+      const db = new Date(b.fechaHora);
+      return sortOrder === 'desc' ? db - da : da - db;
+    });
+    return arr;
+  }, [filteredCitas, sortOrder]);
+
+  const total = sortedCitas.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIdx = (safePage - 1) * perPage;
+  const pagedCitas = sortedCitas.slice(startIdx, startIdx + perPage);
+  const showingFrom = total === 0 ? 0 : startIdx + 1;
+  const showingTo = Math.min(startIdx + perPage, total);
+
+  const handlePerPageChange = (e) => {
+    let v = parseInt(e.target.value, 10);
+    if (isNaN(v) || v <= 0) v = 1;
+    if (v > 100) v = 100;
+    setPerPage(v);
+    setCurrentPage(1);
+  };
 
   const openModal = (cita, mode) => {
     setSelectedCita(cita)
@@ -357,7 +378,7 @@ export default function AppointmentManager() {
                 <option value="Urgencia">Urgencia</option>
               </Form.Select>
             </Col>
-            <Col md={3}>
+            <Col md={2}>
               <Form.Control
                 type="date"
                 value={filterFecha}
@@ -377,6 +398,23 @@ export default function AppointmentManager() {
               >
                 <FaTimes />
               </Button>
+            </Col>
+            {/* Agregar controles de orden y paginación */}
+            <Col md={12} className="border-top pt-3 mt-3">
+              <div className="d-flex align-items-center gap-3 flex-wrap">
+                <Form.Label className="mb-0 text-nowrap">Ordenar:</Form.Label>
+                <Form.Select size="sm" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ width: 200 }}>
+                  <option value="desc">Más nuevas primero</option>
+                  <option value="asc">Más antiguas primero</option>
+                </Form.Select>
+                <InputGroup size="sm" style={{ width: 180 }}>
+                  <InputGroup.Text>Por página</InputGroup.Text>
+                  <Form.Control type="number" min={1} max={100} value={perPage} onChange={handlePerPageChange} />
+                </InputGroup>
+                <small className="text-muted">
+                  Mostrando {showingFrom}-{showingTo} de {total}
+                </small>
+              </div>
             </Col>
           </Row>
         </Card.Body>
@@ -402,109 +440,128 @@ export default function AppointmentManager() {
               <Spinner animation="border" variant="primary" />
               <p className="mt-3 text-muted">Cargando citas...</p>
             </div>
-          ) : filteredCitas.length === 0 ? (
+          ) : pagedCitas.length === 0 ? (
             <div className="text-center py-5">
               <FaCalendarTimes size={48} className="text-muted mb-3" />
               <p className="text-muted">No se encontraron citas</p>
             </div>
           ) : (
-            <div className="table-responsive">
-              <Table hover className="mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Hora</th>
-                    <th>Paciente</th>
-                    <th>Médico</th>
-                    <th>Especialidad</th>
-                    <th>Estado</th>
-                    <th>Prioridad</th>
-                    <th className="text-center">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCitas.map((cita) => (
-                    <tr key={cita.id} className="align-middle">
-                      <td>{formatFecha(cita.fechaHora)}</td>
-                      <td>
-                        <FaClock className="me-1 text-muted" />
-                        {formatHora(cita.fechaHora)}
-                      </td>
-                      <td>
-                        <FaUser className="me-2 text-muted" />
-                        {cita.paciente_nombre}
-                      </td>
-                      <td>
-                        <FaUserMd className="me-2 text-primary" />
-                        {cita.medico_nombre}
-                      </td>
-                      <td>{cita.especialidad_nombre}</td>
-                      <td>{getEstadoBadge(cita.estado)}</td>
-                      <td>{getPrioridadBadge(cita.prioridad)}</td>
-                      <td>
-                        <div className="d-flex gap-1 justify-content-center">
-                          <OverlayTrigger
-                            placement="top"
-                            overlay={<Tooltip>Ver detalles</Tooltip>}
-                          >
-                            <Button
-                              size="sm"
-                              variant="outline-info"
-                              onClick={() => openModal(cita, "view")}
-                            >
-                              <FaEye />
-                            </Button>
-                          </OverlayTrigger>
-
-                          {cita.estado === "Pendiente" && (
-                            <OverlayTrigger
-                              placement="top"
-                              overlay={<Tooltip>Confirmar cita</Tooltip>}
-                            >
-                              <Button
-                                size="sm"
-                                variant="outline-success"
-                                onClick={() => openModal(cita, "confirm")}
-                              >
-                                <FaCheck />
-                              </Button>
-                            </OverlayTrigger>
-                          )}
-
-                          <OverlayTrigger
-                            placement="top"
-                            overlay={<Tooltip>Editar cita</Tooltip>}
-                          >
-                            <Button
-                              size="sm"
-                              variant="outline-warning"
-                              onClick={() => openModal(cita, "edit")}
-                            >
-                              <FaEdit />
-                            </Button>
-                          </OverlayTrigger>
-
-                          {cita.estado !== "Cancelada" && (
-                            <OverlayTrigger
-                              placement="top"
-                              overlay={<Tooltip>Cancelar cita</Tooltip>}
-                            >
-                              <Button
-                                size="sm"
-                                variant="outline-danger"
-                                onClick={() => openModal(cita, "cancel")}
-                              >
-                                <FaTimes />
-                              </Button>
-                            </OverlayTrigger>
-                          )}
-                        </div>
-                      </td>
+            <>
+              <div className="table-responsive">
+                <Table hover className="mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Paciente</th>
+                      <th>Médico</th>
+                      <th>Especialidad</th>
+                      <th>Fecha</th>
+                      <th>Hora</th>
+                      <th>Estado</th>
+                      <th className="text-center">Acciones</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {pagedCitas.map((cita) => (
+                      <tr key={cita.id} className="align-middle">
+                        <td>
+                          <FaUser className="me-2 text-muted" />
+                          {cita.paciente_nombre}
+                        </td>
+                        <td>
+                          <FaUserMd className="me-2 text-primary" />
+                          {cita.medico_nombre}
+                        </td>
+                        <td>{cita.especialidad_nombre}</td>
+                        <td>{formatFecha(cita.fechaHora)}</td>
+                        <td>
+                          <FaClock className="me-1 text-muted" />
+                          {formatHora(cita.fechaHora)}
+                        </td>
+                        <td>
+                          <Badge bg={cita.estado === 'Confirmada' ? 'success' : cita.estado === 'Pendiente' ? 'warning' : cita.estado === 'Cancelada' ? 'danger' : 'secondary'}>
+                            {cita.estado}
+                          </Badge>
+                        </td>
+                        <td>
+                          <div className="d-flex gap-1 justify-content-center">
+                            <OverlayTrigger
+                              placement="top"
+                              overlay={<Tooltip>Ver detalles</Tooltip>}
+                            >
+                              <Button
+                                size="sm"
+                                variant="outline-info"
+                                onClick={() => openModal(cita, "view")}
+                              >
+                                <FaEye />
+                              </Button>
+                            </OverlayTrigger>
+
+                            {cita.estado === "Pendiente" && (
+                              <OverlayTrigger
+                                placement="top"
+                                overlay={<Tooltip>Confirmar cita</Tooltip>}
+                              >
+                                <Button
+                                  size="sm"
+                                  variant="outline-success"
+                                  onClick={() => openModal(cita, "confirm")}
+                                >
+                                  <FaCheck />
+                                </Button>
+                              </OverlayTrigger>
+                            )}
+
+                            <OverlayTrigger
+                              placement="top"
+                              overlay={<Tooltip>Editar cita</Tooltip>}
+                            >
+                              <Button
+                                size="sm"
+                                variant="outline-warning"
+                                onClick={() => openModal(cita, "edit")}
+                              >
+                                <FaEdit />
+                              </Button>
+                            </OverlayTrigger>
+
+                            {cita.estado !== "Cancelada" && (
+                              <OverlayTrigger
+                                placement="top"
+                                overlay={<Tooltip>Cancelar cita</Tooltip>}
+                              >
+                                <Button
+                                  size="sm"
+                                  variant="outline-danger"
+                                  onClick={() => openModal(cita, "cancel")}
+                                >
+                                  <FaTimes />
+                                </Button>
+                              </OverlayTrigger>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </div>
+
+              {/* Paginador */}
+              <div className="d-flex justify-content-center p-3">
+                <Pagination className="mb-0">
+                  <Pagination.First onClick={() => setCurrentPage(1)} disabled={safePage === 1} />
+                  <Pagination.Prev onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safePage === 1} />
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                    <Pagination.Item key={p} active={p === safePage} onClick={() => setCurrentPage(p)}>
+                      {p}
+                    </Pagination.Item>
                   ))}
-                </tbody>
-              </Table>
-            </div>
+                  <Pagination.Next onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} />
+                  <Pagination.Last onClick={() => setCurrentPage(totalPages)} disabled={safePage === totalPages} />
+                </Pagination>
+              </div>
+            </>
           )}
         </Card.Body>
       </Card>
