@@ -1,14 +1,14 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect } from "react"
-import Cookies from "js-cookie"
+import React, { createContext, useState, useContext, useEffect, useMemo } from 'react'
+import Cookies from 'js-cookie'
 
 const AuthContext = createContext()
 
 export function useAuth() {
   const context = useContext(AuthContext)
   if (!context) {
-    throw new Error("useAuth debe ser usado dentro de un AuthProvider")
+    throw new Error('useAuth debe usarse dentro de AuthProvider')
   }
   return context
 }
@@ -17,88 +17,121 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Función helper para obtener datos del usuario
   const getUserData = () => {
-    if (!user) return null;
-    
-    // Si es estructura anidada (usuario.nombre)
-    if (user.usuario && typeof user.usuario === 'object') {
+    if (!user) return null
+    if (user.usuario) {
       return {
-        nombre: user.usuario.nombre || 'Usuario',
-        correo: user.usuario.correo || '',
-        rut: user.usuario.rut || '',
-        telefono: user.usuario.telefono || '',
-        rol: user.usuario.rol || user.rol || 'Usuario'
-      };
-    }
-
-    // Si es estructura plana (nombre directamente en user)
-    return {
-      nombre: user.nombre || 'Usuario',
-      correo: user.correo || '',
-      rut: user.rut || '',
-      telefono: user.telefono || '',
-      rol: user.rol || 'Usuario'
-    };
-  };
-
-  useEffect(() => {
-    const checkAuth = () => {
-      try {
-        const savedUser = Cookies.get("user")
-        const token = Cookies.get("token")
-
-        if (savedUser && savedUser !== "undefined") {
-          const parsedUser = JSON.parse(savedUser)
-          setUser(parsedUser)
-        }
-      } catch (error) {
-        console.error("Error parsing user data:", error)
-        Cookies.remove("user")
-        Cookies.remove("token")
-        setUser(null)
-      } finally {
-        setLoading(false)
+        id: user.usuario.id,
+        nombre: user.usuario.nombre,
+        correo: user.usuario.correo,
+        rut: user.usuario.rut,
+        telefono: user.usuario.telefono,
+        rol: user.usuario.rol,
+        pacienteId: user.id
       }
     }
+    if (user.id && user.rol) {
+      return {
+        id: user.id,
+        nombre: user.nombre,
+        correo: user.correo,
+        rut: user.rut,
+        telefono: user.telefono,
+        rol: user.rol
+      }
+    }
+    if (user.user) {
+      return {
+        id: user.user.id,
+        nombre: user.user.nombre,
+        correo: user.user.correo,
+        rut: user.user.rut,
+        telefono: user.user.telefono,
+        rol: user.user.rol,
+        pacienteId: user.user.paciente_id,
+        medicoId: user.user.medico_id,
+        adminId: user.user.admin_id
+      }
+    }
+    return null
+  }
 
-    checkAuth()
+  useEffect(() => {
+    const init = () => {
+      const cookieUser = Cookies.get('user')
+      const cookieToken = Cookies.get('token')
+      const lsUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+      const lsToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+
+      const rawUser = cookieUser || lsUser
+      const rawToken = cookieToken || lsToken
+
+      // Restaurar user aunque no exista token
+      if (rawUser) {
+        try {
+          const parsed = JSON.parse(rawUser)
+          setUser(parsed)
+        } catch (e) {
+          Cookies.remove('user'); Cookies.remove('token')
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('user'); localStorage.removeItem('token')
+          }
+        }
+      }
+      setLoading(false)
+    }
+    init()
   }, [])
 
   const login = (userData, token) => {
-    try {
-      setUser(userData)
-      Cookies.set("user", JSON.stringify(userData), { expires: 7 })
-      if (token) Cookies.set("token", token, { expires: 7 })
-    } catch (error) {
-      console.error("Error saving auth data:", error)
+    let finalUserData = userData
+    if (userData?.usuario) finalUserData = userData.usuario
+    else if (userData?.user) finalUserData = userData.user
+
+    if (!finalUserData || !finalUserData.id || !finalUserData.rol) {
+      throw new Error("Datos de usuario inválidos")
+    }
+
+    setUser(finalUserData)
+
+    const cookieOptions = { expires: 7, secure: false, sameSite: 'lax', path: '/' }
+    Cookies.set('user', JSON.stringify(finalUserData), cookieOptions)
+    if (token) Cookies.set('token', token, cookieOptions)
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('user', JSON.stringify(finalUserData))
+      if (token) localStorage.setItem('token', token)
     }
   }
 
   const logout = () => {
     setUser(null)
-    Cookies.remove("user")
-    Cookies.remove("token")
+    Cookies.remove('user'); Cookies.remove('token')
+    localStorage.removeItem('user'); localStorage.removeItem('token')
   }
 
-  // Role helpers usando getUserData
-  const userData = getUserData()
-  const role = userData?.rol || null
-  const isAdmin = role === "Administrador" || role === "Admin"
-  const isMedico = role === "Medico"
-  const isPaciente = role === "Paciente"
+  const { userData, isAdmin, isMedico, isPaciente } = useMemo(() => {
+    const data = getUserData()
+    return {
+      userData: data,
+      isAdmin: data?.rol === 'Administrador' || data?.rol === 'Admin',
+      isMedico: data?.rol === 'Medico',
+      isPaciente: data?.rol === 'Paciente'
+    }
+  }, [user])
 
-  const value = {
-    user,
-    login,
-    logout,
-    loading,
-    getUserData,  // Exponemos la función
-    role,
-    isAdmin,
-    isMedico,
-    isPaciente
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      logout,
+      getUserData,
+      isAdmin,
+      isMedico,
+      isPaciente
+    }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }

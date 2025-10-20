@@ -1,0 +1,757 @@
+"use client"
+
+import React, { useState, useEffect } from "react"
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Table,
+  Button,
+  Badge,
+  Form,
+  Modal,
+  Spinner,
+  Alert,
+  ButtonGroup,
+  InputGroup,
+  Dropdown,
+  OverlayTrigger,
+  Tooltip
+} from "react-bootstrap"
+import {
+  FaCalendarCheck,
+  FaCalendarTimes,
+  FaEdit,
+  FaEye,
+  FaCheck,
+  FaTimes,
+  FaExclamationTriangle,
+  FaClock,
+  FaUserMd,
+  FaUser,
+  FaSearch,
+  FaFilter,
+  FaSync,
+  FaFileAlt
+} from "react-icons/fa"
+import { agendarCitaController } from "../../controllers/agendarCitaController"
+
+export default function AppointmentManager() {
+  const [citas, setCitas] = useState([])
+  const [filteredCitas, setFilteredCitas] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  // Estados de filtros
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filterEstado, setFilterEstado] = useState("Todas")
+  const [filterPrioridad, setFilterPrioridad] = useState("Todas")
+  const [filterFecha, setFilterFecha] = useState("")
+
+  // Estados del modal
+  const [showModal, setShowModal] = useState(false)
+  const [selectedCita, setSelectedCita] = useState(null)
+  const [modalMode, setModalMode] = useState("view") // 'view', 'edit', 'confirm', 'cancel'
+  const [editForm, setEditForm] = useState({
+    descripcion: "",
+    prioridad: "Normal",
+    estado: "Pendiente"
+  })
+
+  useEffect(() => {
+    loadCitas()
+  }, [])
+
+  useEffect(() => {
+    applyFilters()
+  }, [citas, searchTerm, filterEstado, filterPrioridad, filterFecha])
+
+  const loadCitas = async () => {
+    setLoading(true)
+    setError("")
+    try {
+      const data = await agendarCitaController.getCitas()
+      setCitas(data || [])
+    } catch (e) {
+      setError("Error cargando citas: " + (e?.message || "Error desconocido"))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const applyFilters = () => {
+    let filtered = [...citas]
+
+    // Filtrar por búsqueda (paciente o médico)
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase()
+      filtered = filtered.filter(
+        (c) =>
+          c.paciente_nombre?.toLowerCase().includes(term) ||
+          c.medico_nombre?.toLowerCase().includes(term) ||
+          c.especialidad_nombre?.toLowerCase().includes(term)
+      )
+    }
+
+    // Filtrar por estado
+    if (filterEstado !== "Todas") {
+      filtered = filtered.filter((c) => c.estado === filterEstado)
+    }
+
+    // Filtrar por prioridad
+    if (filterPrioridad !== "Todas") {
+      filtered = filtered.filter((c) => c.prioridad === filterPrioridad)
+    }
+
+    // Filtrar por fecha
+    if (filterFecha) {
+      filtered = filtered.filter((c) => {
+        const citaFecha = new Date(c.fechaHora).toISOString().split("T")[0]
+        return citaFecha === filterFecha
+      })
+    }
+
+    setFilteredCitas(filtered)
+  }
+
+  const openModal = (cita, mode) => {
+    setSelectedCita(cita)
+    setModalMode(mode)
+    setEditForm({
+      descripcion: cita.descripcion || "",
+      prioridad: cita.prioridad || "Normal",
+      estado: cita.estado || "Pendiente"
+    })
+    setShowModal(true)
+    setError("")
+    setSuccess("")
+  }
+
+  const closeModal = () => {
+    setShowModal(false)
+    setSelectedCita(null)
+    setEditForm({ descripcion: "", prioridad: "Normal", estado: "Pendiente" })
+    setError("")
+    setSuccess("")
+  }
+
+  const handleConfirmCita = async () => {
+    if (!selectedCita) return
+    setLoading(true)
+    setError("")
+    try {
+      await agendarCitaController.updateCita(selectedCita.id, {
+        estado: "Confirmada",
+        prioridad: selectedCita.prioridad,
+        descripcion: selectedCita.descripcion
+      })
+      setSuccess('Cita confirmada')
+      await loadCitas()
+      setTimeout(() => { closeModal() }, 800)
+    } catch (e) {
+      const msg = "Error confirmando cita: " + (e?.message || "Error desconocido")
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCancelCita = async () => {
+    if (!selectedCita) return
+    setLoading(true)
+    setError("")
+    try {
+      await agendarCitaController.updateCita(selectedCita.id, {
+        estado: "Cancelada",
+        prioridad: selectedCita.prioridad,
+        descripcion: selectedCita.descripcion
+      })
+      setSuccess('Cita cancelada')
+      await loadCitas()
+      setTimeout(() => { closeModal() }, 800)
+    } catch (e) {
+      const msg = "Error cancelando cita: " + (e?.message || "Error desconocido")
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpdateCita = async () => {
+    if (!selectedCita) return
+    setLoading(true)
+    setError("")
+    try {
+      await agendarCitaController.updateCita(selectedCita.id, {
+        descripcion: editForm.descripcion,
+        prioridad: editForm.prioridad,
+        estado: editForm.estado
+      })
+      setSuccess('Cita actualizada')
+      await loadCitas()
+      setTimeout(() => { closeModal() }, 800)
+    } catch (e) {
+      const msg = "Error actualizando cita: " + (e?.message || "Error desconocido")
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatFecha = (fechaHora) => {
+    // ✅ Formatear en zona horaria de Chile (America/Santiago)
+    const date = new Date(fechaHora)
+    return date.toLocaleDateString("es-CL", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "America/Santiago"
+    })
+  }
+
+  const formatHora = (fechaHora) => {
+    // ✅ Formatear en zona horaria de Chile (America/Santiago)
+    const date = new Date(fechaHora)
+    return date.toLocaleTimeString("es-CL", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "America/Santiago"
+    })
+  }
+
+  const getEstadoBadge = (estado) => {
+    const variants = {
+      Pendiente: "warning",
+      Confirmada: "success",
+      Cancelada: "danger",
+      Reprogramada: "info"
+    }
+    return <Badge bg={variants[estado] || "secondary"}>{estado}</Badge>
+  }
+
+  const getPrioridadBadge = (prioridad) => {
+    return prioridad === "Urgencia" ? (
+      <Badge bg="danger">
+        <FaExclamationTriangle className="me-1" />
+        Urgencia
+      </Badge>
+    ) : (
+      <Badge bg="secondary">Normal</Badge>
+    )
+  }
+
+  // Estadísticas
+  const stats = {
+    total: citas.length,
+    pendientes: citas.filter((c) => c.estado === "Pendiente").length,
+    confirmadas: citas.filter((c) => c.estado === "Confirmada").length,
+    canceladas: citas.filter((c) => c.estado === "Cancelada").length,
+    urgencias: citas.filter((c) => c.prioridad === "Urgencia").length
+  }
+
+  return (
+    <Container fluid className="py-4">
+      {/* Header con Estadísticas */}
+      <Row className="mb-4">
+        <Col>
+          <h2 className="h4 mb-0">
+            <FaCalendarCheck className="me-2 text-primary" />
+            Gestión de Citas
+          </h2>
+        </Col>
+        <Col xs="auto">
+          <Button variant="primary" onClick={loadCitas} disabled={loading}>
+            {loading ? (
+              <Spinner size="sm" animation="border" />
+            ) : (
+              <>
+                <FaSync className="me-2" />
+                Actualizar
+              </>
+            )}
+          </Button>
+        </Col>
+      </Row>
+
+      {/* Estadísticas Cards */}
+      <Row className="mb-4">
+        <Col md={6} lg={2}>
+          <Card className="stat-card border-0 shadow-sm">
+            <Card.Body className="text-center">
+              <h3 className="h2 mb-0 text-primary">{stats.total}</h3>
+              <small className="text-muted">Total Citas</small>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={6} lg={2}>
+          <Card className="stat-card border-0 shadow-sm">
+            <Card.Body className="text-center">
+              <h3 className="h2 mb-0 text-warning">{stats.pendientes}</h3>
+              <small className="text-muted">Pendientes</small>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={6} lg={2}>
+          <Card className="stat-card border-0 shadow-sm">
+            <Card.Body className="text-center">
+              <h3 className="h2 mb-0 text-success">{stats.confirmadas}</h3>
+              <small className="text-muted">Confirmadas</small>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={6} lg={2}>
+          <Card className="stat-card border-0 shadow-sm">
+            <Card.Body className="text-center">
+              <h3 className="h2 mb-0 text-danger">{stats.canceladas}</h3>
+              <small className="text-muted">Canceladas</small>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={6} lg={2}>
+          <Card className="stat-card border-0 shadow-sm">
+            <Card.Body className="text-center">
+              <h3 className="h2 mb-0 text-danger">{stats.urgencias}</h3>
+              <small className="text-muted">Urgencias</small>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Filtros */}
+      <Card className="mb-4 border-0 shadow-sm">
+        <Card.Body>
+          <Row className="g-3">
+            <Col md={4}>
+              <InputGroup>
+                <InputGroup.Text>
+                  <FaSearch />
+                </InputGroup.Text>
+                <Form.Control
+                  placeholder="Buscar por paciente, médico o especialidad..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </InputGroup>
+            </Col>
+            <Col md={2}>
+              <Form.Select
+                value={filterEstado}
+                onChange={(e) => setFilterEstado(e.target.value)}
+              >
+                <option value="Todas">Todos los estados</option>
+                <option value="Pendiente">Pendiente</option>
+                <option value="Confirmada">Confirmada</option>
+                <option value="Cancelada">Cancelada</option>
+                <option value="Reprogramada">Reprogramada</option>
+              </Form.Select>
+            </Col>
+            <Col md={2}>
+              <Form.Select
+                value={filterPrioridad}
+                onChange={(e) => setFilterPrioridad(e.target.value)}
+              >
+                <option value="Todas">Todas las prioridades</option>
+                <option value="Normal">Normal</option>
+                <option value="Urgencia">Urgencia</option>
+              </Form.Select>
+            </Col>
+            <Col md={3}>
+              <Form.Control
+                type="date"
+                value={filterFecha}
+                onChange={(e) => setFilterFecha(e.target.value)}
+              />
+            </Col>
+            <Col md={1}>
+              <Button
+                variant="outline-secondary"
+                className="w-100"
+                onClick={() => {
+                  setSearchTerm("")
+                  setFilterEstado("Todas")
+                  setFilterPrioridad("Todas")
+                  setFilterFecha("")
+                }}
+              >
+                <FaTimes />
+              </Button>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      {/* Mensajes */}
+      {error && (
+        <Alert variant="danger" dismissible onClose={() => setError("")}>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert variant="success" dismissible onClose={() => setSuccess("")}>
+          {success}
+        </Alert>
+      )}
+
+      {/* Tabla de Citas */}
+      <Card className="border-0 shadow-sm">
+        <Card.Body className="p-0">
+          {loading && !citas.length ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="primary" />
+              <p className="mt-3 text-muted">Cargando citas...</p>
+            </div>
+          ) : filteredCitas.length === 0 ? (
+            <div className="text-center py-5">
+              <FaCalendarTimes size={48} className="text-muted mb-3" />
+              <p className="text-muted">No se encontraron citas</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <Table hover className="mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Paciente</th>
+                    <th>Médico</th>
+                    <th>Especialidad</th>
+                    <th>Estado</th>
+                    <th>Prioridad</th>
+                    <th className="text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCitas.map((cita) => (
+                    <tr key={cita.id} className="align-middle">
+                      <td>{formatFecha(cita.fechaHora)}</td>
+                      <td>
+                        <FaClock className="me-1 text-muted" />
+                        {formatHora(cita.fechaHora)}
+                      </td>
+                      <td>
+                        <FaUser className="me-2 text-muted" />
+                        {cita.paciente_nombre}
+                      </td>
+                      <td>
+                        <FaUserMd className="me-2 text-primary" />
+                        {cita.medico_nombre}
+                      </td>
+                      <td>{cita.especialidad_nombre}</td>
+                      <td>{getEstadoBadge(cita.estado)}</td>
+                      <td>{getPrioridadBadge(cita.prioridad)}</td>
+                      <td>
+                        <div className="d-flex gap-1 justify-content-center">
+                          <OverlayTrigger
+                            placement="top"
+                            overlay={<Tooltip>Ver detalles</Tooltip>}
+                          >
+                            <Button
+                              size="sm"
+                              variant="outline-info"
+                              onClick={() => openModal(cita, "view")}
+                            >
+                              <FaEye />
+                            </Button>
+                          </OverlayTrigger>
+
+                          {cita.estado === "Pendiente" && (
+                            <OverlayTrigger
+                              placement="top"
+                              overlay={<Tooltip>Confirmar cita</Tooltip>}
+                            >
+                              <Button
+                                size="sm"
+                                variant="outline-success"
+                                onClick={() => openModal(cita, "confirm")}
+                              >
+                                <FaCheck />
+                              </Button>
+                            </OverlayTrigger>
+                          )}
+
+                          <OverlayTrigger
+                            placement="top"
+                            overlay={<Tooltip>Editar cita</Tooltip>}
+                          >
+                            <Button
+                              size="sm"
+                              variant="outline-warning"
+                              onClick={() => openModal(cita, "edit")}
+                            >
+                              <FaEdit />
+                            </Button>
+                          </OverlayTrigger>
+
+                          {cita.estado !== "Cancelada" && (
+                            <OverlayTrigger
+                              placement="top"
+                              overlay={<Tooltip>Cancelar cita</Tooltip>}
+                            >
+                              <Button
+                                size="sm"
+                                variant="outline-danger"
+                                onClick={() => openModal(cita, "cancel")}
+                              >
+                                <FaTimes />
+                              </Button>
+                            </OverlayTrigger>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          )}
+        </Card.Body>
+      </Card>
+
+      {/* Modal de Gestión */}
+      <Modal show={showModal} onHide={closeModal} size="lg" centered>
+        <Modal.Header closeButton className="bg-primary text-white">
+          <Modal.Title>
+            {modalMode === "view" && (
+              <>
+                <FaEye className="me-2" />
+                Detalles de la Cita
+              </>
+            )}
+            {modalMode === "edit" && (
+              <>
+                <FaEdit className="me-2" />
+                Editar Cita
+              </>
+            )}
+            {modalMode === "confirm" && (
+              <>
+                <FaCheck className="me-2" />
+                Confirmar Cita
+              </>
+            )}
+            {modalMode === "cancel" && (
+              <>
+                <FaTimes className="me-2" />
+                Cancelar Cita
+              </>
+            )}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedCita && (
+            <>
+              <Row className="mb-3">
+                <Col md={6}>
+                  <Card className="border-0 bg-light">
+                    <Card.Body>
+                      <h6 className="text-muted mb-2">Paciente</h6>
+                      <p className="mb-0">
+                        <FaUser className="me-2" />
+                        {selectedCita.paciente_nombre}
+                      </p>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <Card className="border-0 bg-light">
+                    <Card.Body>
+                      <h6 className="text-muted mb-2">Médico</h6>
+                      <p className="mb-0">
+                        <FaUserMd className="me-2" />
+                        {selectedCita.medico_nombre}
+                      </p>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
+
+              <Row className="mb-3">
+                <Col md={4}>
+                  <Card className="border-0 bg-light">
+                    <Card.Body>
+                      <h6 className="text-muted mb-2">Especialidad</h6>
+                      <p className="mb-0">{selectedCita.especialidad_nombre}</p>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={4}>
+                  <Card className="border-0 bg-light">
+                    <Card.Body>
+                      <h6 className="text-muted mb-2">Fecha y Hora</h6>
+                      <p className="mb-0">
+                        {formatFecha(selectedCita.fechaHora)} - {formatHora(selectedCita.fechaHora)}
+                      </p>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={4}>
+                  <Card className="border-0 bg-light">
+                    <Card.Body>
+                      <h6 className="text-muted mb-2">Box</h6>
+                      <p className="mb-0">{selectedCita.box_nombre || "No asignado"}</p>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
+
+              {modalMode === "view" && (
+                <>
+                  <Row className="mb-3">
+                    <Col md={6}>
+                      <Card className="border-0 bg-light">
+                        <Card.Body>
+                          <h6 className="text-muted mb-2">Estado</h6>
+                          {getEstadoBadge(selectedCita.estado)}
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                    <Col md={6}>
+                      <Card className="border-0 bg-light">
+                        <Card.Body>
+                          <h6 className="text-muted mb-2">Prioridad</h6>
+                          {getPrioridadBadge(selectedCita.prioridad)}
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  </Row>
+
+                  {selectedCita.descripcion && (
+                    <Card className="border-0 bg-light">
+                      <Card.Body>
+                        <h6 className="text-muted mb-2">
+                          <FaFileAlt className="me-2" />
+                          Descripción / Motivo
+                        </h6>
+                        <p className="mb-0">{selectedCita.descripcion}</p>
+                      </Card.Body>
+                    </Card>
+                  )}
+                </>
+              )}
+
+              {modalMode === "edit" && (
+                <Form>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Estado</Form.Label>
+                    <Form.Select
+                      value={editForm.estado}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, estado: e.target.value })
+                      }
+                    >
+                      <option value="Pendiente">Pendiente</option>
+                      <option value="Confirmada">Confirmada</option>
+                      <option value="Cancelada">Cancelada</option>
+                      <option value="Reprogramada">Reprogramada</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  <Form.Group className="mb-3">
+                    <Form.Label>Prioridad</Form.Label>
+                    <Form.Select
+                      value={editForm.prioridad}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, prioridad: e.target.value })
+                      }
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="Urgencia">Urgencia</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  <Form.Group className="mb-3">
+                    <Form.Label>Descripción / Motivo</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={4}
+                      value={editForm.descripcion}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, descripcion: e.target.value })
+                      }
+                      placeholder="Ingrese el motivo o descripción de la cita..."
+                    />
+                  </Form.Group>
+                </Form>
+              )}
+
+              {modalMode === "confirm" && (
+                <Alert variant="info">
+                  <FaCheck className="me-2" />
+                  ¿Está seguro de confirmar esta cita?
+                </Alert>
+              )}
+
+              {modalMode === "cancel" && (
+                <Alert variant="warning">
+                  <FaExclamationTriangle className="me-2" />
+                  ¿Está seguro de cancelar esta cita? Esta acción no se puede deshacer.
+                </Alert>
+              )}
+
+              {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
+              {success && <Alert variant="success" className="mt-3">{success}</Alert>}
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={closeModal}>
+            Cerrar
+          </Button>
+
+          {modalMode === "confirm" && (
+            <Button
+              variant="success"
+              onClick={handleConfirmCita}
+              disabled={loading}
+            >
+              {loading ? (
+                <Spinner size="sm" animation="border" />
+              ) : (
+                <>
+                  <FaCheck className="me-2" />
+                  Confirmar Cita
+                </>
+              )}
+            </Button>
+          )}
+
+          {modalMode === "edit" && (
+            <Button
+              variant="primary"
+              onClick={handleUpdateCita}
+              disabled={loading}
+            >
+              {loading ? (
+                <Spinner size="sm" animation="border" />
+              ) : (
+                <>
+                  <FaEdit className="me-2" />
+                  Guardar Cambios
+                </>
+              )}
+            </Button>
+          )}
+
+          {modalMode === "cancel" && (
+            <Button
+              variant="danger"
+              onClick={handleCancelCita}
+              disabled={loading}
+            >
+              {loading ? (
+                <Spinner size="sm" animation="border" />
+              ) : (
+                <>
+                  <FaTimes className="me-2" />
+                  Cancelar Cita
+                </>
+              )}
+            </Button>
+          )}
+        </Modal.Footer>
+      </Modal>
+    </Container>
+  )
+}

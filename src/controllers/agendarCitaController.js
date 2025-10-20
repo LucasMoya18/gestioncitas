@@ -1,13 +1,32 @@
 // src/controllers/agendarCitaController.js
 
 import axios from "axios";
+const API_URL = "http://127.0.0.1:8000/api";
+const api = axios.create({ baseURL: API_URL, headers: { "Content-Type": "application/json" } });
 
-const API_URL = "http://10.60.49.17:8000/api";
+// Normaliza errores de API
+function normalizeError(e, fallback = "Error de solicitud") {
+  const msg =
+    e?.response?.data?.non_field_errors?.[0] ||
+    e?.response?.data?.detail ||
+    e?.response?.data?.error ||
+    e?.message ||
+    fallback;
+  const err = new Error(msg);
+  err.response = e?.response;
+  err.status = e?.response?.status;
+  return err;
+}
 
-const api = axios.create({
-  baseURL: API_URL,
-  headers: { "Content-Type": "application/json" },
-});
+// Actualizar datos del usuario (edición de médico)
+async function updateUsuario(id, data) {
+  try {
+    const { data: res } = await api.patch(`/usuarios/${id}/`, data);
+    return res;
+  } catch (e) {
+    throw normalizeError(e, "Error actualizando usuario");
+  }
+}
 
 export const agendarCitaController = {
   async getEspecialidades() {
@@ -62,14 +81,16 @@ export const agendarCitaController = {
 
   async createMedico(payload) {
     try {
-      // payload conforme a MedicoSerializer: { usuario: {...}, medico_especialidades: [{especialidad_id, box}, ...] }
-      // adaptamos para enviar especialidades como medico_especialidades->especialidad_id
-      const body = { ...payload };
-      if (payload.especialidades) {
-        body.medico_especialidades = payload.especialidades.map(e => ({
-          especialidad_id: e.id || e.especialidad_id || e
-        }));
-      }
+      const body = {
+        usuario: {
+          nombre: payload.nombre,
+          correo: payload.correo,
+          rut: payload.rut,
+          telefono: payload.telefono || "",
+          rol: "Medico",
+          ...(payload.password ? { password: payload.password } : {})
+        }
+      };
       const res = await api.post("/medicos/", body);
       return res.data;
     } catch (err) {
@@ -80,7 +101,17 @@ export const agendarCitaController = {
 
   async updateMedico(id, payload) {
     try {
-      const res = await api.put(`/medicos/${id}/`, payload);
+      const body = {};
+      if (payload.nombre || payload.correo || payload.rut || payload.telefono || payload.password) {
+        body.usuario = {
+          ...(payload.nombre && { nombre: payload.nombre }),
+          ...(payload.correo && { correo: payload.correo }),
+          ...(payload.rut && { rut: payload.rut }),
+          ...(payload.telefono && { telefono: payload.telefono }),
+          ...(payload.password && { password: payload.password })
+        };
+      }
+      const res = await api.put(`/medicos/${id}/`, body);
       return res.data;
     } catch (err) {
       console.error("updateMedico error:", err?.response?.data || err.message);
@@ -108,40 +139,11 @@ export const agendarCitaController = {
     }
   },
 
-  async getHorariosMedico(medicoId) {
-    try {
-      // intenta endpoint específico, si no existe, consulta /horarios/?medico=
-      try {
-        const res = await api.get(`/medicos/${medicoId}/horarios/`);
-        return res.data || [];
-      } catch (e) {
-        const res = await api.get(`/horarios/?medico=${medicoId}`);
-        return res.data || [];
-      }
-    } catch (err) {
-      console.error("getHorariosMedico error:", err?.response?.data || err.message);
-      return [];
-    }
-  },
-
   async verificarRut(rut) {
     try {
-      // intenta filtro por query si la API lo soporta
-      try {
-        const res = await api.get(`/pacientes/?rut=${encodeURIComponent(rut)}`);
-        if (Array.isArray(res.data) && res.data.length) return res.data[0];
-        // si la API devuelve objeto directo:
-        if (res.data && res.data.usuario) return res.data;
-      } catch (e) {
-        // fallback: obtener todos y buscar
-        const res = await api.get("/pacientes/");
-        const pacientes = res.data || [];
-        const found = pacientes.find((p) => p.usuario?.rut === rut || p.rut === rut);
-        if (found) return found;
-      }
-      return null;
-    } catch (err) {
-      console.error("verificarRut error:", err?.response?.data || err.message);
+      const res = await api.post("/verificar-rut/", { rut });
+      return res.data || null;
+    } catch (e) {
       return null;
     }
   },
@@ -149,26 +151,29 @@ export const agendarCitaController = {
   async agendarCita(citaData) {
     try {
       const payload = {
-        paciente: citaData.paciente,
+        ...(citaData.paciente && { paciente: citaData.paciente }),
+        ...(citaData.usuario_id && { usuario_id: citaData.usuario_id }),
         medico: citaData.medico,
+        medico_especialidad: citaData.medico_especialidad,
         fechaHora: citaData.fechaHora,
         prioridad: citaData.prioridad || "Normal",
         descripcion: citaData.descripcion || "",
       };
+      
+      console.log("📤 Payload enviado al backend:", payload);
       const res = await api.post("/citas/", payload);
+      console.log("✅ Respuesta del backend:", res.data);
       return res.data;
     } catch (err) {
-      console.error("agendarCita error:", err?.response?.data || err.message);
-      // intenta devolver el mensaje de error del backend
-      if (err.response?.data) return { error: err.response.data };
-      return { error: "Error al agendar cita" };
+      console.error("❌ Error agendando cita:", err?.response?.data || err.message);
+      throw err.response?.data || err.message;
     }
   },
 
   async getMedicoEspecialidades(medicoId = null) {
     try {
-      const url = medicoId ? `/medico-especialidades/?medico=${medicoId}` : "/medico-especialidades/";
-      const res = await api.get(url);
+      const params = medicoId ? { medico: medicoId } : {};
+      const res = await api.get("/medico-especialidades/", { params });
       return res.data || [];
     } catch (err) {
       console.error("getMedicoEspecialidades error:", err?.response?.data || err.message);
@@ -178,7 +183,12 @@ export const agendarCitaController = {
 
   async createMedicoEspecialidad(payload) {
     try {
-      const res = await api.post("/medico-especialidades/", payload);
+      const body = {
+        medico_id: payload.medico_id || payload.medico,
+        especialidad_id: payload.especialidad_id || payload.especialidad,
+        ...(payload.activo !== undefined ? { activo: payload.activo } : {})
+      };
+      const res = await api.post("/medico-especialidades/", body);
       return res.data;
     } catch (err) {
       console.error("createMedicoEspecialidad error:", err?.response?.data || err.message);
@@ -186,33 +196,55 @@ export const agendarCitaController = {
     }
   },
 
-  async getHorarios(medicoEspecialidadId) {
+  async updateMedicoEspecialidad(id, payload) {
     try {
-      const res = await api.get(`/horarios/?medico_especialidad=${medicoEspecialidadId}`);
-      return res.data || [];
-    } catch (err) {
-      console.error("getHorarios error:", err?.response?.data || err.message);
-      return [];
-    }
-  },
-
-  async createHorario(payload) {
-    try {
-      const res = await api.post("/horarios/", payload);
+      const body = {
+        ...(payload.medico_id || payload.medico ? { medico_id: payload.medico_id || payload.medico } : {}),
+        ...(payload.especialidad_id || payload.especialidad ? { especialidad_id: payload.especialidad_id || payload.especialidad } : {}),
+        ...(payload.activo !== undefined ? { activo: payload.activo } : {})
+      };
+      const res = await api.put(`/medico-especialidades/${id}/`, body);
       return res.data;
     } catch (err) {
-      console.error("createHorario error:", err?.response?.data || err.message);
+      console.error("updateMedicoEspecialidad error:", err?.response?.data || err.message);
       throw err.response?.data || err.message;
     }
   },
 
-  async deleteHorario(id) {
+  async deleteMedicoEspecialidad(id) {
     try {
-      const res = await api.delete(`/horarios/${id}/`);
+      const res = await api.delete(`/medico-especialidades/${id}/`);
       return res.data || { ok: true };
     } catch (err) {
-      console.error("deleteHorario error:", err?.response?.data || err.message);
+      console.error("deleteMedicoEspecialidad error:", err?.response?.data || err.message);
       throw err.response?.data || err.message;
     }
   },
+
+  async updateCita(citaId, citaData) {
+    try {
+      console.log("📝 Actualizando cita:", citaId, citaData)
+      
+      // ✅ Usar PATCH en lugar de PUT para actualización parcial
+      const res = await api.patch(`/citas/${citaId}/`, citaData)
+      console.log("✅ Cita actualizada:", res.data)
+      return res.data
+    } catch (err) {
+      console.error("❌ Error actualizando cita:", err?.response?.data || err.message)
+      throw err.response?.data || err.message
+    }
+  },
+
+  async deleteCita(citaId) {
+    try {
+      const res = await api.delete(`/citas/${citaId}/`);
+      console.log("✅ Cita eliminada");
+      return res.data;
+    } catch (err) {
+      console.error("❌ Error eliminando cita:", err?.response?.data || err.message);
+      throw err.response?.data || err.message;
+    }
+  },
+
+  updateUsuario,
 };

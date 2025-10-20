@@ -1,23 +1,28 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { Card, Button, Table, Form, Modal, Row, Col, Alert, Spinner, InputGroup } from "react-bootstrap"
-import { FaPlus, FaTrash, FaEdit, FaMinus } from "react-icons/fa"
+import { Container, Card, Button, Table, Form, Modal, Row, Col, Alert, Spinner, InputGroup, ButtonGroup, Nav, Tab } from "react-bootstrap"
+import { FaPlus, FaTrash, FaEdit, FaMinus, FaClock, FaClinicMedical, FaStethoscope, FaCalendarCheck } from "react-icons/fa"
 import { agendarCitaController } from "../../controllers/agendarCitaController"
 import { useAuth } from "../../context/AuthContext"
-import MedScheduleManager from './MedScheduleManager' // nuevo componente
+import MedScheduleManager from "./MedScheduleManager"
+import BoxManager from "./BoxManager"
+import SpecialtyManager from "./SpecialtyManager"
+import AppointmentManager from "./AppointmentManager"
+import { useConfirm } from "../../utils/confirm";
+import { formatRut, normalizeRutWithDash } from "../../utils/rutFormatter"
 
 export default function AdminPanel() {
   const { user, isAdmin, isMedico } = useAuth()
+  const [activeTab, setActiveTab] = useState("citas")
   const [especialidades, setEspecialidades] = useState([])
   const [medicos, setMedicos] = useState([])
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState("")
+  const [medicoEspecialidades, setMedicoEspecialidades] = useState([]) // <-- FALTA ESTE ESTADO
   const [showEspModal, setShowEspModal] = useState(false)
   const [espName, setEspName] = useState("")
   const [editEspId, setEditEspId] = useState(null)
-
-  // Nuevo estado para administrar médicos
   const [showMedModal, setShowMedModal] = useState(false)
   const [editMedId, setEditMedId] = useState(null)
   const [medForm, setMedForm] = useState({
@@ -26,59 +31,43 @@ export default function AdminPanel() {
     password: "",
     telefono: "",
     rut: "",
-    // ahora guardamos array de objetos { especialidad_id, box }
     especialidades: []
   })
+  const [rutDisplay, setRutDisplay] = useState("") // visual 11.111.111-1
 
   // Estado para gestor de horarios
   const [showScheduleModal, setShowScheduleModal] = useState(false)
-  const [selectedMedEsp, setSelectedMedEsp] = useState(null)
+  const [selectedMedicoForSchedule, setSelectedMedicoForSchedule] = useState(null)
+
+  // Estado para gestor de boxes
+  const [showBoxModal, setShowBoxModal] = useState(false)
+  const [selectedMedico, setSelectedMedico] = useState(null)
+
+  // Estado para gestor de especialidades
+  const [showSpecialtyModal, setShowSpecialtyModal] = useState(false)
+  const [selectedMedicoForSpecialty, setSelectedMedicoForSpecialty] = useState(null)
+
+  const confirm = useConfirm();
 
   useEffect(() => {
-    // cargar para admins; si es médico, también cargamos (pero filtrado luego)
     if (!isAdmin && !isMedico) return
     cargarDatos()
   }, [isAdmin, isMedico])
 
   const cargarDatos = async () => {
     setLoading(true)
+    setErr("")
     try {
-      // traer especialidades y medicos
-      const [esp, med] = await Promise.all([
+      const [espData, medData, medEspData] = await Promise.all([
         agendarCitaController.getEspecialidades(),
-        agendarCitaController.getMedicos()
+        agendarCitaController.getMedicos(),
+        agendarCitaController.getMedicoEspecialidades()
       ])
-      // traer medico-especialidades solo si el controlador tiene la función
-      const medEsp = typeof agendarCitaController.getMedicoEspecialidades === "function"
-        ? await agendarCitaController.getMedicoEspecialidades()
-        : []
-
-      // agrupar medico-especialidades por id del medico (usar usuario.id cuando exista)
-      const grouped = {}
-      ;(medEsp || []).forEach(me => {
-        const medicoId = me.medico?.usuario?.id ?? me.medico ?? me.medico_id
-        if (!grouped[medicoId]) grouped[medicoId] = []
-        grouped[medicoId].push(me)
-      })
-
-      // anexar medico_especialidades a cada médico
-      const medWithEsp = (med || []).map(m => {
-        const id = m.usuario?.id ?? m.id
-        return { ...m, medico_especialidades: grouped[id] || [] }
-      })
-
-      // si es médico, filtrar para mostrar solo al propio médico
-      let finalMedicos = medWithEsp
-      if (isMedico && user) {
-        const myId = user.usuario?.id ?? user.id
-        finalMedicos = medWithEsp.filter(m => (m.usuario?.id ?? m.id) === myId)
-      }
-
-      setEspecialidades(esp || [])
-      setMedicos(finalMedicos || [])
-    } catch (e) {
-      console.error("cargarDatos error:", e)
-      setErr("Error al cargar datos")
+      setEspecialidades(espData)
+      setMedicos(medData)
+      setMedicoEspecialidades(medEspData || [])
+    } catch (error) {
+      setErr("Error cargando datos: " + (error?.message || error))
     } finally {
       setLoading(false)
     }
@@ -99,7 +88,7 @@ export default function AdminPanel() {
         await agendarCitaController.createEspecialidad({ nombre: espName })
       }
       setShowEspModal(false)
-      cargarDatos()
+      await cargarDatos()
     } catch (e) {
       setErr("Error guardando especialidad")
     } finally {
@@ -108,10 +97,16 @@ export default function AdminPanel() {
   }
 
   const removeEspecialidad = async (id) => {
-    if (!confirm("Eliminar especialidad?")) return
+    const ok = await confirm({
+      title: '¿Eliminar la especialidad?',
+      text: 'Esta acción no se puede deshacer.',
+      variant: 'danger',
+      confirmButtonText: 'Sí, eliminar'
+    })
+    if (!ok) return
     try {
       await agendarCitaController.deleteEspecialidad(id)
-      cargarDatos()
+      await cargarDatos()
     } catch (e) {
       setErr("Error eliminando especialidad")
     }
@@ -123,194 +118,273 @@ export default function AdminPanel() {
     setShowEspModal(true)
   }
 
-  // --- Funciones para médicos ---
   const openNewMedico = () => {
     setEditMedId(null)
     setMedForm({ nombre: "", correo: "", password: "", telefono: "", rut: "", especialidades: [] })
+    setRutDisplay("") // reset visual
     setShowMedModal(true)
     setErr("")
   }
 
   const startEditMedico = (m) => {
-    setEditMedId(m.usuario?.id ?? m.id)
+    const rutSrc = m.usuario?.rut || m.rut || ""
+    setEditMedId(m.usuario?.id || m.id)
     setMedForm({
       nombre: m.usuario?.nombre || m.nombre || "",
       correo: m.usuario?.correo || m.correo || "",
-      password: "", // no rellenar password por seguridad
+      password: "",
       telefono: m.usuario?.telefono || m.telefono || "",
-      rut: m.usuario?.rut || m.rut || "",
-      especialidades: (m.medico_especialidades || m.especialidades || []).map(me => ({
-        especialidad_id: me.especialidad?.id ?? me.especialidad ?? "",
-        box: me.box || ""
-      }))
+      rut: normalizeRutWithDash(rutSrc), // mantener normalizado con guión
+      especialidades: []
     })
+    setRutDisplay(formatRut(rutSrc)) // mostrar con puntos y guión
     setShowMedModal(true)
     setErr("")
   }
 
-  const addEspecialidadRow = () => {
-    setMedForm(prev => ({ ...prev, especialidades: [...prev.especialidades, { especialidad_id: "", box: "" }] }))
-  }
-
-  const updateEspecialidadRow = (index, patch) => {
-    setMedForm(prev => {
-      const next = { ...prev, especialidades: [...prev.especialidades] }
-      next.especialidades[index] = { ...next.especialidades[index], ...patch }
-      return next
-    })
-  }
-
-  const removeEspecialidadRow = (index) => {
-    setMedForm(prev => {
-      const next = { ...prev, especialidades: prev.especialidades.filter((_, i) => i !== index) }
-      return next
-    })
+  const handleRutChange = (e) => {
+    const value = e.target.value || ""
+    setRutDisplay(formatRut(value)) // visual 11.111.111-1
+    setMedForm(prev => ({ ...prev, rut: normalizeRutWithDash(value) })) // enviar 11111111-1
   }
 
   const saveMedico = async () => {
-    // validaciones simples
+    setErr("")
     if (!medForm.nombre || !medForm.correo || !medForm.rut) {
-      setErr("Nombre, correo y RUT son obligatorios")
+      setErr("Complete nombre, correo y RUT")
       return
     }
-    setLoading(true)
+    if (!editMedId && !medForm.password) {
+      setErr("La contraseña es requerida para nuevo médico")
+      return
+    }
+
     try {
-      const payload = {
-        usuario: {
+      let medicoId = null
+
+      if (editMedId) {
+        // Actualizar datos del USUARIO (PATCH) para evitar requerir password y rol obligatorios
+        await agendarCitaController.updateUsuario(editMedId, {
           nombre: medForm.nombre,
           correo: medForm.correo,
           telefono: medForm.telefono,
-          rut: medForm.rut,
-          rol: "Medico"
-        },
-        // enviar especialidades como array de objetos { especialidad_id, box }
-        medico_especialidades: medForm.especialidades.map(s => ({
-          especialidad_id: s.especialidad_id,
-          box: s.box || ""
-        })),
-        especialidad_texto: "" // opcional de compatibilidad
-      }
-      // incluir contraseña solo al crear o si se especifica al editar
-      if (!editMedId && medForm.password) {
-        payload.usuario.password = medForm.password
-      } else if (!editMedId && !medForm.password) {
-        setErr("Debe especificar una contraseña para el nuevo médico")
-        setLoading(false)
-        return
-      } else if (editMedId && medForm.password) {
-        payload.usuario.password = medForm.password
-      }
-
-      if (editMedId) {
-        await agendarCitaController.updateMedico(editMedId, payload)
+          rut: medForm.rut, // 11111111-1
+          ...(medForm.password?.trim() ? { password: medForm.password } : {}),
+          rol: "Medico",
+        })
+        medicoId = editMedId
       } else {
-        await agendarCitaController.createMedico(payload)
+        // Crear médico (crea usuario + médico)
+        const created = await agendarCitaController.createMedico({
+          nombre: medForm.nombre,
+          correo: medForm.correo,
+          telefono: medForm.telefono,
+          rut: medForm.rut, // 11111111-1
+          password: medForm.password
+        })
+        medicoId = created?.id || created?.usuario?.id
       }
 
+      if (!medicoId) {
+        setErr("No se pudo obtener el ID del médico.")
+        return
+      }
+
+      await cargarDatos()
       setShowMedModal(false)
-      cargarDatos()
-    } catch (e) {
-      console.error("Error guardando médico:", e)
-      setErr("Error guardando médico")
-    } finally {
-      setLoading(false)
+      setMedForm({ nombre: "", correo: "", password: "", telefono: "", rut: "", especialidades: [] })
+      setRutDisplay("")
+      setEditMedId(null)
+    } catch (error) {
+      const apiMsg = error?.response?.data
+        ? JSON.stringify(error.response.data)
+        : (error?.message || "Error guardando médico")
+      setErr("Error guardando médico: " + apiMsg)
     }
   }
 
   const removeMedico = async (m) => {
-    const id = m.usuario?.id ?? m.id
-    if (!confirm("Eliminar médico?")) return
+    const ok = await confirm({
+      title: `¿Eliminar al médico ${m.usuario?.nombre || m.nombre}?`,
+      text: 'Esta acción no se puede deshacer.',
+      variant: 'danger',
+      confirmButtonText: 'Sí, eliminar'
+    })
+    if (!ok) return
     try {
-      await agendarCitaController.deleteMedico(id)
-      cargarDatos()
-    } catch (e) {
+      await agendarCitaController.deleteMedico(m.usuario?.id || m.id)
+      await cargarDatos()
+    } catch (error) {
       setErr("Error eliminando médico")
     }
   }
 
-  const openScheduleManager = (medicoEspecialidad) => {
-    console.log("openScheduleManager:", medicoEspecialidad)
-    setSelectedMedEsp(medicoEspecialidad)
+  const openScheduleManager = (medico) => {
+    setSelectedMedicoForSchedule(medico)
     setShowScheduleModal(true)
   }
 
   const closeScheduleManager = () => {
     setShowScheduleModal(false)
-    setSelectedMedEsp(null)
+    setSelectedMedicoForSchedule(null)
   }
 
-  const onScheduleSaved = async () => {
-    // refrescar datos y cerrar modal cuando MedScheduleManager notifique cambios
+  const openBoxManager = (medico) => {
+    setSelectedMedico(medico)
+    setShowBoxModal(true)
+  }
+
+  const closeBoxManager = async () => {
+    setShowBoxModal(false)
+    setSelectedMedico(null)
     await cargarDatos()
-    closeScheduleManager()
+  }
+
+  const openSpecialtyManager = (medico) => {
+    setSelectedMedicoForSpecialty(medico)
+    setShowSpecialtyModal(true)
+  }
+
+  const closeSpecialtyManager = async () => {
+    setShowSpecialtyModal(false)
+    setSelectedMedicoForSpecialty(null)
+    await cargarDatos()
   }
 
   if (!isAdmin) return null
 
   return (
-    <Card className="mb-4 shadow-sm">
-      <Card.Header className="d-flex justify-content-between align-items-center">
-        <h5 className="mb-0">Administración — Doctores & Especialidades</h5>
-        <div>
-          <Button variant="outline-primary" size="sm" className="me-2" onClick={cargarDatos}>Refrescar</Button>
-          <Button variant="outline-success" size="sm" className="me-2" onClick={openNewMedico}><FaPlus className="me-1" /> Nuevo Doctor</Button>
-          <Button variant="primary" size="sm" onClick={openNewEspecialidad}><FaPlus className="me-1" /> Nueva Especialidad</Button>
-        </div>
-      </Card.Header>
-      <Card.Body>
-        {err && <Alert variant="danger">{err}</Alert>}
-        {loading ? (
-          <div className="text-center py-4"><Spinner /></div>
-        ) : (
-          <>
-            <Row>
-              <Col md={6}>
-                <h6>Especialidades</h6>
-                <Table size="sm" hover>
-                  <thead><tr><th>Nombre</th><th></th></tr></thead>
+    <Container fluid className="py-4">
+      <h1 className="h3 mb-4">Panel de Administración</h1>
+
+      <Tab.Container activeKey={activeTab} onSelect={(k) => setActiveTab(k)}>
+        <Nav variant="tabs" className="mb-4">
+          <Nav.Item>
+            <Nav.Link eventKey="citas">
+              <FaCalendarCheck className="me-2" />
+              Gestión de Citas
+            </Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link eventKey="especialidades">
+              <FaStethoscope className="me-2" />
+              Especialidades
+            </Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link eventKey="medicos">
+              <FaClinicMedical className="me-2" />
+              Médicos
+            </Nav.Link>
+          </Nav.Item>
+        </Nav>
+
+        <Tab.Content>
+          <Tab.Pane eventKey="citas">
+            <AppointmentManager />
+          </Tab.Pane>
+
+          <Tab.Pane eventKey="especialidades">
+            {/* Tabla de Especialidades existente */}
+            <Card className="mb-4">
+              <Card.Header className="d-flex justify-content-between align-items-center">
+                <h5>Especialidades</h5>
+                <Button size="sm" onClick={openNewEspecialidad}>
+                  + Nueva Especialidad
+                </Button>
+              </Card.Header>
+              <Card.Body>
+                <Table striped bordered hover size="sm">
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th className="text-center">Acciones</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {especialidades.map(e => (
                       <tr key={e.id}>
                         <td>{e.nombre}</td>
-                        <td className="text-end">
-                          <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => startEditEspecialidad(e)}><FaEdit /></Button>
-                          <Button variant="outline-danger" size="sm" onClick={() => removeEspecialidad(e.id)}><FaTrash /></Button>
+                        <td className="text-center">
+                          <ButtonGroup size="sm">
+                            <Button variant="outline-secondary" onClick={() => startEditEspecialidad(e)}>
+                              <FaEdit />
+                            </Button>
+                            <Button variant="outline-danger" onClick={() => removeEspecialidad(e.id)}>
+                              <FaTrash />
+                            </Button>
+                          </ButtonGroup>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </Table>
-              </Col>
+              </Card.Body>
+            </Card>
+          </Tab.Pane>
 
-              <Col md={6}>
-                <h6>Doctores</h6>
-                <Table size="sm" hover>
-                  <thead><tr><th>Nombre</th><th>Especialidad</th><th></th></tr></thead>
+          <Tab.Pane eventKey="medicos">
+            {/* Tabla de Médicos existente */}
+            <Card className="mb-4">
+              <Card.Header className="d-flex justify-content-between align-items-center">
+                <h5>Médicos</h5>
+                <Button size="sm" onClick={openNewMedico}>
+                  + Nuevo Médico
+                </Button>
+              </Card.Header>
+              <Card.Body>
+                <Table striped bordered hover size="sm">
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>RUT</th>
+                      <th>Correo</th>
+                      <th>Especialidades</th>
+                      <th className="text-center">Acciones</th>
+                    </tr>
+                  </thead>
                   <tbody>
-                    {medicos.map(m => (
-                      <tr key={m.usuario?.id ?? m.id}>
-                        <td>{m.usuario?.nombre || m.nombre}</td>
-                        <td>
-                          {(m.medico_especialidades || m.especialidades || []).map((me) => (
-                            <div key={me.id} className="d-flex gap-2 align-items-center">
-                              <small className="text-muted">{me.especialidad?.nombre || me.especialidad_texto}</small>
-                              <Button size="sm" variant="outline-info" onClick={() => openScheduleManager(me)}>Horarios</Button>
-                            </div>
-                          ))}
-                        </td>
-                        <td className="text-end">
-                          <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => startEditMedico(m)}><FaEdit /></Button>
-                          <Button variant="outline-danger" size="sm" onClick={() => removeMedico(m)}><FaTrash /></Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {medicos.map(m => {
+                      const espMedico = (medicoEspecialidades || [])
+                        .filter(me => me.medico?.id === m.usuario?.id || me.medico === (m.usuario?.id || m.id))
+                        .map(me => me.especialidad?.nombre || "Sin nombre")
+                        .join(", ")
+
+                      return (
+                        <tr key={m.usuario?.id || m.id}>
+                          <td>{m.usuario?.nombre || m.nombre}</td>
+                          <td>{m.usuario?.rut || m.rut}</td>
+                          <td>{m.usuario?.correo || m.correo}</td>
+                          <td>{espMedico || "Sin especialidades"}</td>
+                          <td className="text-center">
+                            <ButtonGroup size="sm">
+                              <Button variant="success" onClick={() => openSpecialtyManager(m)} title="Gestionar Especialidades">
+                                <FaStethoscope />
+                              </Button>
+                              <Button variant="primary" onClick={() => openScheduleManager(m)} title="Gestionar Horarios">
+                                <FaClock />
+                              </Button>
+                              <Button variant="info" onClick={() => openBoxManager(m)} title="Gestionar Boxes">
+                                <FaClinicMedical />
+                              </Button>
+                              <Button variant="warning" onClick={() => startEditMedico(m)} title="Editar Médico">
+                                <FaEdit />
+                              </Button>
+                              <Button variant="danger" onClick={() => removeMedico(m)} title="Eliminar Médico">
+                                <FaTrash />
+                              </Button>
+                            </ButtonGroup>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </Table>
-              </Col>
-            </Row>
-          </>
-        )}
-      </Card.Body>
+              </Card.Body>
+            </Card>
+          </Tab.Pane>
+        </Tab.Content>
+      </Tab.Container>
 
       {/* Modal Especialidad */}
       <Modal show={showEspModal} onHide={() => setShowEspModal(false)} centered>
@@ -325,7 +399,9 @@ export default function AdminPanel() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowEspModal(false)}>Cancelar</Button>
-          <Button variant="primary" onClick={saveEspecialidad} disabled={!espName.trim() || loading}>{loading ? "Guardando..." : "Guardar"}</Button>
+          <Button variant="primary" onClick={saveEspecialidad} disabled={!espName.trim() || loading}>
+            {loading ? "Guardando..." : "Guardar"}
+          </Button>
         </Modal.Footer>
       </Modal>
 
@@ -352,7 +428,18 @@ export default function AdminPanel() {
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>RUT</Form.Label>
-                  <Form.Control value={medForm.rut} onChange={(e) => setMedForm({ ...medForm, rut: e.target.value })} />
+                  <Form.Control
+                    value={rutDisplay}
+                    onChange={handleRutChange}
+                    disabled={!!editMedId}  // bloquear al editar
+                    placeholder="11.111.111-1"
+                    maxLength={12}
+                  />
+                  {editMedId && (
+                    <Form.Text className="text-muted">
+                      El RUT no se puede modificar una vez creado.
+                    </Form.Text>
+                  )}
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -361,39 +448,7 @@ export default function AdminPanel() {
                   <Form.Control value={medForm.telefono} onChange={(e) => setMedForm({ ...medForm, telefono: e.target.value })} />
                 </Form.Group>
               </Col>
-
-              {/* Nuevo: lista dinámica de especialidades con botón + */}
-              <Col xs={12}>
-                <Form.Label>Especialidades</Form.Label>
-                <div className="mb-2">
-                  {medForm.especialidades.map((row, idx) => (
-                    <InputGroup className="mb-2" key={idx}>
-                      <Form.Select
-                        value={row.especialidad_id}
-                        onChange={(e) => updateEspecialidadRow(idx, { especialidad_id: e.target.value })}
-                      >
-                        <option value="">Seleccione especialidad...</option>
-                        {especialidades.map((esp) => (
-                          <option key={esp.id} value={esp.id}>{esp.nombre}</option>
-                        ))}
-                      </Form.Select>
-                      <Form.Control
-                        placeholder="Box / Consultorio (opcional)"
-                        value={row.box}
-                        onChange={(e) => updateEspecialidadRow(idx, { box: e.target.value })}
-                      />
-                      <Button variant="outline-danger" onClick={() => removeEspecialidadRow(idx)}><FaMinus /></Button>
-                    </InputGroup>
-                  ))}
-
-                  <div className="d-flex">
-                    <Button size="sm" variant="outline-primary" onClick={addEspecialidadRow}><FaPlus className="me-1" /> Agregar especialidad</Button>
-                    <Form.Text className="text-muted ms-3">Agrega una por una para indicar box y evitar duplicados.</Form.Text>
-                  </div>
-                </div>
-              </Col>
-
-              <Col md={6}>
+              <Col md={12}>
                 <Form.Group>
                   <Form.Label>{editMedId ? "Nueva contraseña (opcional)" : "Contraseña"}</Form.Label>
                   <Form.Control type="password" value={medForm.password} onChange={(e) => setMedForm({ ...medForm, password: e.target.value })} />
@@ -401,21 +456,52 @@ export default function AdminPanel() {
               </Col>
             </Row>
             {err && <Alert variant="danger" className="mt-2">{err}</Alert>}
+            <Alert variant="info" className="mt-3">
+              <small>
+                Después de crear/editar el médico, use los botones de la tabla para:
+                <ul className="mb-0 mt-2">
+                  <li><FaStethoscope className="text-success" /> <strong>Especialidades:</strong> Asignar especialidades al médico</li>
+                  <li><FaClinicMedical className="text-info" /> <strong>Boxes:</strong> Crear y gestionar boxes/consultorios</li>
+                  <li><FaClock className="text-info" /> <strong>Horarios:</strong> Configurar disponibilidad por especialidad</li>
+                </ul>
+              </small>
+            </Alert>
           </Form>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowMedModal(false)}>Cancelar</Button>
-          <Button variant="primary" onClick={saveMedico} disabled={loading}>{loading ? "Guardando..." : (editMedId ? "Actualizar" : "Crear")}</Button>
+          <Button variant="primary" onClick={saveMedico} disabled={loading}>
+            {loading ? "Guardando..." : (editMedId ? "Actualizar" : "Crear")}
+          </Button>
         </Modal.Footer>
       </Modal>
 
-      {/* Gestor de horarios: abre al pulsar "Horarios" en la lista de doctores */}
-      <MedScheduleManager
-        show={showScheduleModal}
-        onClose={closeScheduleManager}
-        medicoEspecialidad={selectedMedEsp}
-        onSaved={onScheduleSaved}
-      />
-    </Card>
+      {/* Gestor de horarios */}
+      {showScheduleModal && (
+        <MedScheduleManager
+          show={showScheduleModal}
+          onClose={closeScheduleManager}
+          medico={selectedMedicoForSchedule}
+        />
+      )}
+
+      {/* Gestor de boxes */}
+      {showBoxModal && (
+        <BoxManager
+          show={showBoxModal}
+          onClose={closeBoxManager}
+          medico={selectedMedico}
+        />
+      )}
+
+      {/* Gestor de especialidades */}
+      {showSpecialtyModal && (
+        <SpecialtyManager
+          show={showSpecialtyModal}
+          onClose={closeSpecialtyManager}
+          medico={selectedMedicoForSpecialty}
+        />
+      )}
+    </Container>
   )
 }

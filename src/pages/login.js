@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
-import { FaSignInAlt, FaArrowLeft } from 'react-icons/fa';
+import { FaSignInAlt, FaArrowLeft, FaIdCard, FaLock } from 'react-icons/fa';
 import { useRouter } from 'next/router';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { loginUsuario } from '../controllers/loginController';
+import { loginController } from '../controllers/loginController';
+import { formatRut, normalizeRutWithDash } from '../utils/rutFormatter';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
     rut: '',
     password: ''
   });
+  const [rutDisplay, setRutDisplay] = useState(''); // visual 11.111.111-1
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -25,42 +26,61 @@ export default function LoginPage() {
     }
   }, [user, authLoading, router]);
 
-  const formatRut = (value) => {
-    if (!value) return ''
-    let v = value.toString().toUpperCase().replace(/[^0-9Kk]/g, '')
-    if (v.length === 1) return v
-    const verifier = v.slice(-1)
-    let numbers = v.slice(0, -1).replace(/\D/g, '')
-    const rev = numbers.split('').reverse().join('')
-    const grouped = rev.match(/.{1,3}/g)?.join('.').split('').reverse().join('') || numbers
-    return `${grouped}-${verifier}`
-  }
-
-  const normalizeRut = (formatted) => {
-    if (!formatted) return ''
-    return formatted.toString().replace(/\./g, '').replace(/-/g, '').toUpperCase()
-  }
-
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.name === 'rut' ? formatRut(e.target.value) : e.target.value
-    });
+    setError('');
+    const { name, value } = e.target;
+
+    if (name === 'rut') {
+      setRutDisplay(formatRut(value)); // visual 11.111.111-1
+      setFormData(prev => ({ ...prev, rut: normalizeRutWithDash(value) })); // guardar 11111111-1
+      return;
+    }
+
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setLoading(true);
+
     try {
-      // usar rut normalizado para autenticación
-      const rutNormalized = normalizeRut(formData.rut)
-      console.log(rutNormalized)
-      const { user: userData, token } = await loginUsuario(rutNormalized, formData.password);
-      login(userData, token);
-      router.push('/dashboard');
+      const data = await loginController.login(formData.rut, formData.password);
+
+      if (data?.ok === false) {
+        setError(data.message || 'Credenciales inválidas');
+        return;
+      }
+
+      if (data && data.user) {
+        // Pasa el token para que se guarde
+        login(data.user, data.token);
+        
+        // Mostrar mensaje de bienvenida si existe
+        if (data.message) {
+          console.log("✅", data.message);
+        }
+
+        setTimeout(() => {
+          const rol = data.user.rol;
+          console.log("🔄 Redirigiendo según rol:", rol);
+          
+          if (rol === 'Medico') {
+            router.push('/dashboard?tab=medico');
+          } else if (rol === 'Administrador' || rol === 'Admin') {
+            router.push('/dashboard?tab=admin');
+          } else if (rol === 'Paciente') {
+            router.push('/dashboard');
+          } else {
+            router.push('/dashboard');
+          }
+        }, 100);
+      } else {
+        setError('Credenciales inválidas');
+      }
     } catch (err) {
-      setError(err);
+      setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+    } finally {
       setLoading(false);
     }
   };
@@ -108,19 +128,29 @@ export default function LoginPage() {
 
                   <Form onSubmit={handleSubmit}>
                     <Form.Group className="mb-3">
-                      <Form.Label>RUT</Form.Label>
+                      <Form.Label className="fw-medium">
+                        <FaIdCard className="me-2" />
+                        RUT
+                      </Form.Label>
                       <Form.Control
                         type="text"
                         name="rut"
-                        value={formData.rut}
+                        value={rutDisplay}
                         onChange={handleChange}
-                        placeholder="12.345.678-9"
+                        placeholder="11.111.111-1"
+                        maxLength={12}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        Formato automático. Acepta dígito K.
+                      </Form.Text>
                     </Form.Group>
 
                     <Form.Group className="mb-4">
-                      <Form.Label>Contraseña</Form.Label>
+                      <Form.Label className="fw-medium">
+                        <FaLock className="me-2" />
+                        Contraseña
+                      </Form.Label>
                       <Form.Control
                         type="password"
                         name="password"
@@ -161,8 +191,9 @@ export default function LoginPage() {
                   <div className="mt-4 p-3 bg-light rounded">
                     <small className="text-muted">
                       <strong>Datos de prueba:</strong><br/>
-                      RUT: 12.345.678-9<br/>
-                      Password: cualquier valor
+                      <strong>Paciente:</strong> 12.345.678-9 / admin123<br/>
+                      <strong>Médico:</strong> (tu RUT de médico) / (tu contraseña)<br/>
+                      <strong>Admin:</strong> (tu RUT de admin) / (tu contraseña)
                     </small>
                   </div>
                 </Card.Body>

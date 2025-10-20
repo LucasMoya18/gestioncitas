@@ -110,3 +110,180 @@
 .modal-content {
   background: #ffffff !important;
 }
+
+/* Time Slot Selector Styles */
+.time-slot-card {
+  transition: all 0.3s ease;
+  border: 2px solid #e9ecef;
+  background: white;
+}
+
+.time-slot-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
+  border-color: #0d6efd;
+}
+
+.time-slot-card.selected {
+  background: linear-gradient(135deg, #d1e7dd 0%, #a3cfbb 100%);
+  border-color: #198754;
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.3);
+}
+
+.time-slot-card .card-body {
+  padding: 0.75rem 0.5rem;
+}
+
+/* Schedule Manager Enhancements */
+.table-hover tbody tr:hover {
+  background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Alert Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alert {
+  animation: slideIn 0.3s ease;
+}
+
+/* Card Hover Effects */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+/* Appointment Manager Styles */
+.stat-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: default;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12) !important;
+}
+
+.stat-card h3 {
+  font-weight: 700;
+}
+
+/* Table Enhancements */
+.table-responsive {
+  border-radius: 8px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.table thead th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: white;
+}
+
+.table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.table tbody tr:hover {
+  background-color: rgba(13, 110, 253, 0.05);
+  transform: scale(1.01);
+}
+
+/* Modal Enhancements */
+.modal-header.bg-primary {
+  background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%) !important;
+}
+
+/* Button Group Spacing */
+.btn-group .btn {
+  margin: 0 2px;
+}
+
+/* Badge Animations */
+.badge {
+  transition: transform 0.2s ease;
+}
+
+.badge:hover {
+  transform: scale(1.1);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .stat-card h3 {
+    font-size: 1.5rem;
+  }
+  
+  .table {
+    font-size: 0.85rem;
+  }
+  
+  .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* Smooth Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card, .alert {
+  animation: fadeIn 0.3s ease;
+}
+
+/* Evitar scroll horizontal causado por elevaciones/hover */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Contenedores Bootstrap sin overflow horizontal */
+.container, .container-fluid, .row {
+  overflow-x: hidden;
+}
+
+/* Las tablas mantienen solo cambio de color en hover, sin transform */
+.table-hover tbody tr,
+.table tbody tr {
+  transition: background-color 0.2s ease;
+}
+.table-hover tbody tr:hover {
+  transform: none !important;
+}
+
+/* Asegurar que bordes/sombras no alteren el ancho disponible */
+.card, .time-slot-card, .table {
+  box-sizing: border-box;
+}
+
+/* Las tablas responsivas siguen permitiendo scroll si de verdad hace falta */
+.table-responsive {
+  overflow-x: auto;
+}

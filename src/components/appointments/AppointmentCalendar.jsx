@@ -1,6 +1,7 @@
 // src/components/appointments/AppointmentCalendar.js
 
-import React, { useState, useEffect } from 'react';
+// Remueve el import por defecto de React para usar la nueva transformación JSX
+import { useState, useEffect } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { useAuth } from '../../context/AuthContext';
 import format from 'date-fns/format';
