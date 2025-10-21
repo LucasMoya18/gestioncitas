@@ -246,5 +246,49 @@ export const agendarCitaController = {
     }
   },
 
+  async verificarOCrearRut(rut) {
+    try {
+      const response = await fetch(`${API_URL}/verificar-o-crear-rut/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rut })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw errorData
+      }
+      
+      return await response.json()
+    } catch (error) {
+      console.error('Error verificando/creando RUT:', error)
+      throw error
+    }
+  },
+  
+  async actualizarUsuarioConHistorial(usuarioId, usuarioData, direccion) {
+    try {
+      const response = await fetch(`${API_URL}/actualizar-usuario-historial/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usuario_id: usuarioId,
+          usuario: usuarioData,
+          direccion
+        })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw errorData
+      }
+      
+      return await response.json()
+    } catch (error) {
+      console.error('Error actualizando usuario con historial:', error)
+      throw error
+    }
+  },
+
   updateUsuario,
 };

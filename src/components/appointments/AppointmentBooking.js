@@ -14,6 +14,7 @@ export default function AppointmentBooking() {
   const [showRutModal, setShowRutModal] = useState(false)
   const [rut, setRut] = useState("")
   const [tempUserData, setTempUserData] = useState(null)
+  const [tempPacienteId, setTempPacienteId] = useState(null) // ✅ Nuevo estado
 
   // Estados para el formulario de cita
   const [especialidades, setEspecialidades] = useState([])
@@ -34,7 +35,7 @@ export default function AppointmentBooking() {
   const [medicoEspecialidadId, setMedicoEspecialidadId] = useState(null)
 
   const confirm = useConfirm();
-  const [processing, setProcessing] = useState(false); // <- modal de carga propio
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     cargarDatos()
@@ -67,10 +68,10 @@ export default function AppointmentBooking() {
     if (!especialidadSeleccionada) {
       setMedicosFiltrados([])
       setMedicoSeleccionado("")
-      setFechaSeleccionada("") // ✅ Limpiar fecha
-      setHoraSeleccionada("") // ✅ Limpiar hora
-      setSlots([]) // ✅ Limpiar slots
-      setMedicoEspecialidadId(null) // ✅ Limpiar ME ID
+      setFechaSeleccionada("")
+      setHoraSeleccionada("")
+      setSlots([])
+      setMedicoEspecialidadId(null)
       return
     }
 
@@ -101,7 +102,6 @@ export default function AppointmentBooking() {
     console.log("Médicos filtrados:", filtrados)
     setMedicosFiltrados(filtrados)
     
-    // ✅ Si el médico seleccionado no está en la lista filtrada, limpiar todo
     if (medicoSeleccionado && !filtrados.find(m => (m.usuario?.id || m.id) === Number(medicoSeleccionado))) {
       setMedicoSeleccionado("")
       setFechaSeleccionada("")
@@ -111,10 +111,8 @@ export default function AppointmentBooking() {
     }
   }, [especialidadSeleccionada, especialidades, medicoEspecialidades, medicos])
 
-  // ✅ Limpiar campos cuando cambia el médico
   useEffect(() => {
     if (medicoSeleccionado) {
-      // Al cambiar médico, limpiar fecha, hora y slots pero mantener especialidad y descripción
       setFechaSeleccionada("")
       setHoraSeleccionada("")
       setSlots([])
@@ -137,7 +135,6 @@ export default function AppointmentBooking() {
       return
     }
 
-    // ✅ Primero encontrar el objeto Médico completo
     const medicoObj = medicos.find(m => {
       const medicoUsuarioId = m.usuario?.id || m.id
       return medicoUsuarioId === Number(medicoSeleccionado)
@@ -149,7 +146,6 @@ export default function AppointmentBooking() {
       return
     }
 
-    // ✅ El ID del médico en la tabla Medico (no el usuario_id)
     const medicoId = medicoObj.id
 
     console.log("🔍 Buscando MedicoEspecialidad para:", {
@@ -158,7 +154,6 @@ export default function AppointmentBooking() {
       especialidadId: especialidad.id
     })
 
-    // ✅ Buscar usando el ID de la tabla Medico
     const medEsp = medicoEspecialidades.find(me => {
       const meIdMedico = me.medico?.id || me.medico
       const meIdEspecialidad = me.especialidad?.id || me.especialidad
@@ -166,7 +161,7 @@ export default function AppointmentBooking() {
       const match = meIdMedico === medicoId && meIdEspecialidad === especialidad.id
       
       console.log("Comparando ME:", {
-        meId: me.id, // ✅ Corrección: usar meId: en lugar de solo me.id
+        meId: me.id,
         meIdMedico,
         medicoId,
         meIdEspecialidad,
@@ -188,7 +183,6 @@ export default function AppointmentBooking() {
     }
   }, [medicoSeleccionado, especialidadSeleccionada, especialidades, medicoEspecialidades, medicos])
 
-  // ✅ Limpiar hora cuando cambia la fecha
   useEffect(() => {
     if (fechaSeleccionada) {
       setHoraSeleccionada("")
@@ -272,7 +266,52 @@ export default function AppointmentBooking() {
     await agendarCitaDirecta()
   }
 
-  const agendarCitaDirecta = async () => {
+  const handleRutSubmit = async () => {
+    if (!rut.trim()) {
+      setError("Por favor ingrese su RUT")
+      return
+    }
+
+    setLoading(true)
+    setError("")
+    
+    try {
+      console.log("🔍 Verificando RUT:", rut)
+      const resultado = await agendarCitaController.verificarOCrearRut(rut)
+      
+      console.log("📥 Resultado completo:", resultado)
+      console.log("📥 Usuario recibido:", resultado.usuario)
+      console.log("📥 Paciente ID recibido:", resultado.paciente_id)
+      
+      if (resultado.usuario && resultado.paciente_id) {
+        setTempUserData(resultado.usuario)
+        setTempPacienteId(resultado.paciente_id)
+        
+        console.log("✅ Estados actualizados:")
+        console.log("   - tempUserData:", resultado.usuario)
+        console.log("   - tempPacienteId:", resultado.paciente_id)
+        
+        setShowRutModal(false)
+        
+        // ✅ Llamar directamente pasando el paciente_id como parámetro
+        setTimeout(async () => {
+          console.log("🚀 Iniciando agendamiento con paciente_id:", resultado.paciente_id)
+          await agendarCitaDirecta(resultado.paciente_id)
+        }, 100)
+      } else {
+        console.error("❌ Datos incompletos:", resultado)
+        setError("Error al procesar el RUT: datos incompletos")
+      }
+    } catch (err) {
+      console.error("❌ Error verificando RUT:", err)
+      setError(err?.error || err?.message || "Error al verificar RUT")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ✅ Modificar agendarCitaDirecta para aceptar pacienteIdParam
+  const agendarCitaDirecta = async (pacienteIdParam = null) => {
     setLoading(true)
     setError("")
     try {
@@ -294,10 +333,12 @@ export default function AppointmentBooking() {
         confirmButtonText: 'Agendar',
         variant: 'primary'
       })
-      if (!ok) { setLoading(false); return }
+      if (!ok) { 
+        setLoading(false)
+        return 
+      }
 
-      // alerts.showLoading('Agendando cita...') // <- quitar
-      setProcessing(true) // <- mostrar modal de carga
+      setProcessing(true)
 
       const medicoObj = medicos.find(m => {
         const medicoUsuarioId = m.usuario?.id || m.id
@@ -313,55 +354,54 @@ export default function AppointmentBooking() {
         prioridad: "Normal"
       }
 
-      if (user) {
-        citaData.usuario_id = Number(userData.id)
-      } else if (tempUserData) {
-        citaData.paciente = Number(tempUserData.id)
-      } else {
+      // ✅ Determinar el paciente con prioridad al parámetro
+      let pacienteId = null
+      
+      if (pacienteIdParam) {
+        // Parámetro directo (cuando viene desde handleRutSubmit)
+        pacienteId = Number(pacienteIdParam)
+        console.log("✅ Usando paciente_id del parámetro:", pacienteId)
+      } else if (user && userData) {
+        // Usuario autenticado
+        pacienteId = userData.pacienteId || userData.id
+        console.log("✅ Usuario autenticado - paciente_id:", pacienteId)
+      } else if (tempPacienteId) {
+        // Usuario temporal (sin login) - desde estado
+        pacienteId = Number(tempPacienteId)
+        console.log("✅ Usuario temporal - paciente_id desde estado:", pacienteId)
+      }
+      
+      if (!pacienteId) {
+        console.error("❌ Estados actuales:")
+        console.error("   - user:", user)
+        console.error("   - userData:", userData)
+        console.error("   - tempPacienteId:", tempPacienteId)
+        console.error("   - pacienteIdParam:", pacienteIdParam)
         throw new Error("No se pudo identificar al paciente")
       }
+      
+      citaData.paciente = pacienteId
+
+      console.log("📤 Datos de cita a enviar:", citaData)
 
       const resultado = await agendarCitaController.agendarCita(citaData)
       console.log("✅ Cita creada:", resultado)
       setSuccess('¡Cita agendada exitosamente!')
-      // Limpieza opcional del formulario
+      
+      // Limpieza del formulario
       setHoraSeleccionada("")
       setFechaSeleccionada("")
       setDescripcion("")
       setSlots([])
+      setTempUserData(null)
+      setTempPacienteId(null)
+      setRut("")
     } catch (err) {
       console.error("❌ Error agendando cita:", err)
       const errorMsg = err?.fechaHora?.[0] || err?.paciente?.[0] || err?.usuario_id?.[0] || err?.error || err?.message || "Error al agendar la cita"
       setError(errorMsg)
     } finally {
-      setProcessing(false) // <- cerrar modal de carga
-      setLoading(false)
-    }
-  }
-
-  const handleRutSubmit = async () => {
-    if (!rut.trim()) {
-      setError("Por favor ingrese su RUT")
-      return
-    }
-
-    setLoading(true)
-    try {
-      const userData = await agendarCitaController.verificarRut(rut)
-
-      if (userData && !userData.error) {
-        setTempUserData(userData)
-        setShowRutModal(false)
-        setError("")
-        
-        // ✅ Agendar la cita después de verificar el RUT
-        await agendarCitaDirecta()
-      } else {
-        setError("RUT no registrado. Por favor regístrese primero.")
-      }
-    } catch (err) {
-      setError("Error al verificar RUT: " + (err?.message || err))
-    } finally {
+      setProcessing(false)
       setLoading(false)
     }
   }
@@ -578,7 +618,7 @@ export default function AppointmentBooking() {
         </Modal.Footer>
       </Modal>
 
-      {/* Modal de procesamiento (sustituye al showLoading de SweetAlert) */}
+      {/* Modal de procesamiento */}
       <Modal show={processing} centered backdrop="static" keyboard={false}>
         <Modal.Body className="d-flex align-items-center gap-3">
           <Spinner animation="border" variant="primary" />

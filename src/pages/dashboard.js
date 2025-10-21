@@ -540,9 +540,9 @@ export default function Dashboard() {
           </Row>
         </Container>
 
-        <div className="mt-5">
+        {/* <div className="mt-5">
           <AppointmentCalendar />
-        </div>
+        </div> */}
       </div>
     </>
   );

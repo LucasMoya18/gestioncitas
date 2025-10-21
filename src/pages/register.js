@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
-import { FaUser, FaEnvelope, FaLock, FaPhone, FaIdCard, FaUserPlus, FaHome } from 'react-icons/fa';
+import { Container, Row, Col, Card, Form, Button, Alert, Spinner, Modal } from 'react-bootstrap';
+import { FaUser, FaEnvelope, FaLock, FaPhone, FaIdCard, FaUserPlus, FaHome, FaExclamationTriangle } from 'react-icons/fa';
 import { useRouter } from 'next/router';
 import { registerController } from '../controllers/registerController';
 import { formatRut, normalizeRut, validateRut, normalizeRutWithDash } from '../utils/rutFormatter';
@@ -24,6 +24,10 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  
+  // ✅ Estado para modal de confirmación de historial
+  const [showHistorialModal, setShowHistorialModal] = useState(false)
+  const [historialData, setHistorialData] = useState(null)
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -78,14 +82,75 @@ export default function RegisterPage() {
 
     try {
       const { confirmPassword, ...dataToSend } = formData
+      console.log("📤 Intentando registrar con:", dataToSend)
+      
       await registerController.register(dataToSend)
+      
+      console.log("✅ Registro completado exitosamente")
       setSuccess(true)
       setTimeout(() => router.push("/login"), 1500)
     } catch (err) {
+      console.error("❌ Error capturado en handleSubmit:", err)
+      console.error("   - message:", err.message)
+      console.error("   - errorData:", err.errorData)
+      console.error("   - usuario_id:", err.usuario_id)
+      
+      // ✅ Detectar si el error es por RUT con historial
+      if (err.message === 'rut_con_historial' && err.errorData) {
+        console.log("🔔 Detectado RUT con historial, mostrando modal")
+        setHistorialData({
+          usuario_id: err.usuario_id || err.errorData.usuario_id,
+          mensaje: err.mensaje || err.errorData.mensaje || 'Este RUT ya tiene historial de citas en el sistema',
+          tiene_citas: err.tiene_citas || err.errorData.tiene_citas
+        })
+        setShowHistorialModal(true)
+        setLoading(false)
+        return
+      }
+      
+      // ✅ Cualquier otro error
       setError(err.message || "Error al registrar. Intenta nuevamente.")
+    } finally {
+      if (!showHistorialModal) {
+        setLoading(false)
+      }
+    }
+  }
+
+  // ✅ Manejar actualización de usuario con historial
+  const handleActualizarHistorial = async () => {
+    console.log("🔄 Actualizando usuario con historial:", historialData)
+    setShowHistorialModal(false)
+    setLoading(true)
+    setError("")
+
+    try {
+      await registerController.actualizarUsuarioConHistorial(
+        historialData.usuario_id,
+        {
+          nombre: formData.nombre,
+          correo: formData.correo,
+          password: formData.password,
+          telefono: formData.telefono
+        }
+      )
+      
+      console.log("✅ Usuario actualizado exitosamente")
+      setSuccess(true)
+      setTimeout(() => router.push("/login?registro=actualizado"), 1500)
+    } catch (err) {
+      console.error("❌ Error al actualizar usuario:", err)
+      setError(err.message || "Error al actualizar usuario. Intenta nuevamente.")
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleCancelarActualizacion = () => {
+    console.log("❌ Usuario canceló la actualización")
+    setShowHistorialModal(false)
+    setHistorialData(null)
+    setError("Registro cancelado. El RUT ya existe en el sistema.")
   }
 
   return (
@@ -143,7 +208,6 @@ export default function RegisterPage() {
                         maxLength={12}
                         required
                       />
-                      
                     </Form.Group>
 
                     <Form.Group className="mb-3">
@@ -243,6 +307,54 @@ export default function RegisterPage() {
           </Row>
         </Container>
       </div>
+
+      {/* ✅ Modal de confirmación para usuario con historial */}
+      <Modal 
+        show={showHistorialModal} 
+        onHide={handleCancelarActualizacion}
+        backdrop="static"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaExclamationTriangle className="text-warning me-2" />
+            RUT con Historial Encontrado
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-3">{historialData?.mensaje}</p>
+          <Alert variant="info">
+            <strong>¿Desea actualizar los datos de este usuario?</strong>
+            <p className="mb-0 mt-2">
+              Si acepta, se actualizarán los datos del usuario existente con la información proporcionada, 
+              manteniendo el historial de citas previas.
+            </p>
+          </Alert>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={handleCancelarActualizacion}
+            disabled={loading}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleActualizarHistorial}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                Actualizando...
+              </>
+            ) : (
+              'Sí, Actualizar Datos'
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 }
