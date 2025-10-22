@@ -164,15 +164,13 @@ export default function AppointmentManager() {
     setError("")
     try {
       await agendarCitaController.updateCita(selectedCita.id, {
-        estado: "Confirmada",
-        prioridad: selectedCita.prioridad,
-        descripcion: selectedCita.descripcion
+        estado: "Confirmada"
       })
       setSuccess('Cita confirmada')
       await loadCitas()
       setTimeout(() => { closeModal() }, 800)
     } catch (e) {
-      const msg = "Error confirmando cita: " + (e?.message || "Error desconocido")
+      const msg = "Error confirmando cita: " + (e?.detail || e?.message || "Error desconocido")
       setError(msg)
     } finally {
       setLoading(false)
@@ -185,15 +183,13 @@ export default function AppointmentManager() {
     setError("")
     try {
       await agendarCitaController.updateCita(selectedCita.id, {
-        estado: "Cancelada",
-        prioridad: selectedCita.prioridad,
-        descripcion: selectedCita.descripcion
+        estado: "Cancelada"
       })
       setSuccess('Cita cancelada')
       await loadCitas()
       setTimeout(() => { closeModal() }, 800)
     } catch (e) {
-      const msg = "Error cancelando cita: " + (e?.message || "Error desconocido")
+      const msg = "Error cancelando cita: " + (e?.detail || e?.message || "Error desconocido")
       setError(msg)
     } finally {
       setLoading(false)
@@ -214,7 +210,7 @@ export default function AppointmentManager() {
       await loadCitas()
       setTimeout(() => { closeModal() }, 800)
     } catch (e) {
-      const msg = "Error actualizando cita: " + (e?.message || "Error desconocido")
+      const msg = "Error actualizando cita: " + (e?.detail || e?.message || "Error desconocido")
       setError(msg)
     } finally {
       setLoading(false)

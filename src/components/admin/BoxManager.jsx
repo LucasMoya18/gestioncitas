@@ -23,7 +23,17 @@ export default function BoxManager({ show, onClose, medico }) {
     try {
       const data = await boxesController.list(medico.usuario?.id || medico.id)
       setBoxes(data || [])
-    } catch (e) { setError("Error cargando boxes") }
+    } catch (e) { 
+      const errorMsg = e?.message || "Error cargando boxes"
+      setError(errorMsg)
+      
+      // Si es error de autenticación, redirigir al login
+      if (errorMsg.includes('sesión') || errorMsg.includes('Sesión')) {
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 2000)
+      }
+    }
     finally { setLoading(false) }
   }
 

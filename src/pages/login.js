@@ -40,48 +40,59 @@ export default function LoginPage() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+    e.preventDefault()
+    if (!formData.rut || !formData.password) {
+      setError("Todos los campos son requeridos")
+      return
+    }
+
+    setLoading(true)
+    setError("")
 
     try {
-      const data = await loginController.login(formData.rut, formData.password);
-
-      if (data?.ok === false) {
-        setError(data.message || 'Credenciales inválidas');
-        return;
+      const response = await loginController.login(formData.rut, formData.password)
+      
+      // ✅ Verificar si la respuesta es exitosa
+      if (!response.ok) {
+        throw new Error(response.message || 'Error al iniciar sesión')
+      }
+      
+      const { user, access, token, message } = response;
+      
+      // ✅ El token puede venir como 'access' o 'token'
+      const authToken = access || token;
+      
+      if (!authToken) {
+        throw new Error('No se recibió token de autenticación del servidor')
       }
 
-      if (data && data.user) {
-        // Pasa el token para que se guarde
-        login(data.user, data.token);
+      // Login con token
+      login(user, authToken)
+      
+      // Mostrar mensaje de bienvenida si existe
+      if (message) {
+        console.log("✅", message);
+      }
+      
+      setTimeout(() => {
+        const rol = user.rol;
+        console.log("🔄 Redirigiendo según rol:", rol);
         
-        // Mostrar mensaje de bienvenida si existe
-        if (data.message) {
-          console.log("✅", data.message);
+        if (rol === 'Medico') {
+          router.push('/dashboard?tab=medico');
+        } else if (rol === 'Administrador' || rol === 'Admin') {
+          router.push('/dashboard?tab=admin');
+        } else if (rol === 'Paciente') {
+          router.push('/dashboard');
+        } else {
+          router.push('/dashboard');
         }
-
-        setTimeout(() => {
-          const rol = data.user.rol;
-          console.log("🔄 Redirigiendo según rol:", rol);
-          
-          if (rol === 'Medico') {
-            router.push('/dashboard?tab=medico');
-          } else if (rol === 'Administrador' || rol === 'Admin') {
-            router.push('/dashboard?tab=admin');
-          } else if (rol === 'Paciente') {
-            router.push('/dashboard');
-          } else {
-            router.push('/dashboard');
-          }
-        }, 100);
-      } else {
-        setError('Credenciales inválidas');
-      }
+      }, 100);
     } catch (err) {
-      setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+      console.error('❌ Error en login:', err);
+      setError(err.message || "Error al iniciar sesión")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   };
 

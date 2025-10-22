@@ -17,8 +17,11 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // ✅ Función para obtener datos del usuario
   const getUserData = () => {
     if (!user) return null
+    
+    // Caso 1: Usuario tiene propiedad 'usuario' (paciente)
     if (user.usuario) {
       return {
         id: user.usuario.id,
@@ -30,6 +33,8 @@ export function AuthProvider({ children }) {
         pacienteId: user.id
       }
     }
+    
+    // Caso 2: Usuario tiene id y rol directamente
     if (user.id && user.rol) {
       return {
         id: user.id,
@@ -40,6 +45,8 @@ export function AuthProvider({ children }) {
         rol: user.rol
       }
     }
+    
+    // Caso 3: Usuario tiene propiedad 'user'
     if (user.user) {
       return {
         id: user.user.id,
@@ -53,8 +60,20 @@ export function AuthProvider({ children }) {
         adminId: user.user.admin_id
       }
     }
+    
     return null
   }
+
+  // ✅ Calcular userData, isAdmin, isMedico, isPaciente usando useMemo
+  const { userData, isAdmin, isMedico, isPaciente } = useMemo(() => {
+    const data = getUserData()
+    return {
+      userData: data,
+      isAdmin: data?.rol === 'Administrador' || data?.rol === 'Admin',
+      isMedico: data?.rol === 'Medico',
+      isPaciente: data?.rol === 'Paciente'
+    }
+  }, [user])
 
   useEffect(() => {
     const init = () => {
@@ -66,15 +85,25 @@ export function AuthProvider({ children }) {
       const rawUser = cookieUser || lsUser
       const rawToken = cookieToken || lsToken
 
-      // Restaurar user aunque no exista token
+      // Verificar que existe token válido
+      if (rawToken) {
+        console.log('✅ Token encontrado en init:', rawToken.substring(0, 20) + '...')
+      } else {
+        console.warn('⚠️ No se encontró token en init')
+      }
+
+      // Restaurar user si existe
       if (rawUser) {
         try {
           const parsed = JSON.parse(rawUser)
           setUser(parsed)
         } catch (e) {
-          Cookies.remove('user'); Cookies.remove('token')
+          console.error('❌ Error parseando usuario:', e)
+          Cookies.remove('user')
+          Cookies.remove('token')
           if (typeof window !== 'undefined') {
-            localStorage.removeItem('user'); localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            localStorage.removeItem('token')
           }
         }
       }
@@ -92,41 +121,46 @@ export function AuthProvider({ children }) {
       throw new Error("Datos de usuario inválidos")
     }
 
+    // Verificar que se recibió token
+    if (!token) {
+      console.error('❌ No se recibió token en login')
+      throw new Error("Token de autenticación no recibido")
+    }
+
     setUser(finalUserData)
 
     const cookieOptions = { expires: 7, secure: false, sameSite: 'lax', path: '/' }
     Cookies.set('user', JSON.stringify(finalUserData), cookieOptions)
-    if (token) Cookies.set('token', token, cookieOptions)
+    Cookies.set('token', token, cookieOptions)
 
     if (typeof window !== 'undefined') {
       localStorage.setItem('user', JSON.stringify(finalUserData))
-      if (token) localStorage.setItem('token', token)
+      localStorage.setItem('token', token)
     }
+
+    console.log('✅ Login exitoso. Token guardado:', token.substring(0, 20) + '...')
   }
 
   const logout = () => {
     setUser(null)
-    Cookies.remove('user'); Cookies.remove('token')
-    localStorage.removeItem('user'); localStorage.removeItem('token')
+    Cookies.remove('user')
+    Cookies.remove('token')
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
+    }
+    console.log('✅ Sesión cerrada')
   }
 
-  const { userData, isAdmin, isMedico, isPaciente } = useMemo(() => {
-    const data = getUserData()
-    return {
-      userData: data,
-      isAdmin: data?.rol === 'Administrador' || data?.rol === 'Admin',
-      isMedico: data?.rol === 'Medico',
-      isPaciente: data?.rol === 'Paciente'
-    }
-  }, [user])
-
+  // ✅ Exportar getUserData en el contexto
   return (
     <AuthContext.Provider value={{
       user,
       loading,
       login,
       logout,
-      getUserData,
+      getUserData,      // ✅ Exportar función
+      userData,         // ✅ Exportar datos calculados
       isAdmin,
       isMedico,
       isPaciente

@@ -6,16 +6,29 @@ import axios from 'axios';
 import Link from 'next/link';
 import { Container, Row, Col, Card, Navbar, Nav, Button, Table, Badge, Spinner, Alert, Tabs, Tab, Form, Pagination, InputGroup } from 'react-bootstrap';
 import { FaStethoscope, FaSignOutAlt, FaCalendar, FaUser, FaClock, FaMapMarkerAlt, FaCheckCircle, FaExclamationTriangle, FaUserShield } from 'react-icons/fa';
+import Cookies from 'js-cookie';
 
 import AppointmentCalendar from '@/components/appointments/AppointmentCalendar';
 import AdminPanel from '@/components/admin/AdminPanel'
+import { agendarCitaController } from '../controllers/agendarCitaController';
 
 const API_URL = "http://127.0.0.1:8000/api";
 const api = axios.create({ baseURL: API_URL, headers: { "Content-Type": "application/json" }});
 
 export default function Dashboard() {
-  const { user, logout, loading: authLoading, getUserData, isAdmin, isMedico, isPaciente } = useAuth();
-  const router = useRouter();
+  // ✅ Obtener userData directamente del contexto
+  const { 
+    user, 
+    loading: authLoading, 
+    logout, 
+    getUserData,    // ✅ Función del contexto
+    userData,       // ✅ Datos del usuario ya calculados
+    isAdmin, 
+    isMedico, 
+    isPaciente 
+  } = useAuth()
+  
+  const router = useRouter()
   
   // Estados para datos reales
   const [citas, setCitas] = useState([]);
@@ -24,20 +37,20 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("citas");
 
   // Controles de orden y paginación
-  const [sortOrder, setSortOrder] = useState('desc'); // 'desc' | 'asc'
+  const [sortOrder, setSortOrder] = useState('desc');
   const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (user) {
-      const userData = getUserData();
+      // ✅ Usar userData del contexto directamente
       console.log("🔍 Dashboard - User data:", userData);
       console.log("🔍 Dashboard - isAdmin:", isAdmin);
       console.log("🔍 Dashboard - isMedico:", isMedico);
       console.log("🔍 Dashboard - isPaciente:", isPaciente);
       cargarCitas();
     }
-  }, [user]);
+  }, [user, userData]); // ✅ Agregar userData a las dependencias
 
   useEffect(() => {
     // Reiniciar página al cambiar citas o tamaño de página
@@ -75,36 +88,37 @@ export default function Dashboard() {
 
   const cargarCitas = async () => {
     try {
-      setLoading(true);
-      setError("");
+      console.log('📋 Cargando citas...');
+
+      const response = await agendarCitaController.getCitas();
+
+      console.log('✅ Citas cargadas:', response);
       
-      const userData = getUserData();
-      if (!userData) {
-        setError("No se pudo obtener información del usuario");
-        return;
+      // Filtrar según rol
+      let citasFiltradas = response;
+      
+      if (isMedico && userData?.id) {
+        citasFiltradas = response.filter(c => c.medico === userData.id);
+      } else if (isPaciente && userData?.id) {
+        citasFiltradas = response.filter(c => c.paciente === userData.id);
       }
-
-      const response = await api.get("/citas/");
-      let citasUsuario = [];
-
-      if (isPaciente) {
-        // Paciente: solo sus citas
-        citasUsuario = response.data.filter(c => c.paciente === userData.id);
-      } else if (isMedico) {
-        // Médico: solo sus citas
-        citasUsuario = response.data.filter(c => c.medico === userData.id);
-      } else if (isAdmin) {
-        // Admin: solo sus propias citas (si agenda como paciente)
-        citasUsuario = response.data.filter(c => c.paciente === userData.id);
+      
+      setCitas(citasFiltradas);
+    } catch (error) {
+      console.error('Error cargando citas:', error);
+      
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('Authentication') || 
+          errorMsg.includes('credentials') || 
+          errorMsg.includes('401')) {
+        setError('Sesión expirada. Por favor inicie sesión nuevamente.');
+        setTimeout(() => {
+          logout();
+          router.push('/login');
+        }, 2000);
+      } else {
+        setError('Error al cargar las citas');
       }
-
-      citasUsuario.sort((a, b) => new Date(a.fechaHora) - new Date(b.fechaHora));
-      setCitas(citasUsuario);
-      console.log("Citas cargadas:", citasUsuario);
-    } catch (err) {
-      console.error("Error cargando citas:", err);
-      setError("Error al cargar las citas: " + (err.message || "Error desconocido"));
-      setCitas([]);
     } finally {
       setLoading(false);
     }
@@ -158,14 +172,12 @@ export default function Dashboard() {
   const citasPendientes = citas.filter(c => c.estado === 'Pendiente').length;
 
   useEffect(() => {
-    // Evita redirigir mientras AuthContext sigue cargando
     if (authLoading) return;
     if (!user) {
       router.push('/login');
     }
   }, [user, authLoading, router]);
 
-  // Muestra spinner mientras Auth o datos están cargando
   if (authLoading || loading) {
     return (
       <div className="d-flex justify-content-center align-items-center min-vh-100">
@@ -174,7 +186,6 @@ export default function Dashboard() {
     );
   }
 
-  // Si aún no hay user justo al terminar la carga, evita "pantalla en blanco"
   if (!user) {
     return (
       <div className="d-flex justify-content-center align-items-center min-vh-100">
@@ -183,8 +194,7 @@ export default function Dashboard() {
     );
   }
 
-  const userData = getUserData();
-  
+  // ✅ Usar userData del contexto directamente
   if (!userData) {
     console.error("❌ No se pudo obtener datos del usuario:", user);
     return (
