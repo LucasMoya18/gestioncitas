@@ -2,7 +2,7 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 
 //  Configuración centralizada de la API
-export const API_URL = 'http://127.0.0.1:8000/api';
+export const API_URL = 'http://35.153.50.17:8000/api';
 
 //  Función helper para obtener headers con autenticación
 export const getAuthHeaders = () => {
