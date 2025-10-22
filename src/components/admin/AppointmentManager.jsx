@@ -218,7 +218,7 @@ export default function AppointmentManager() {
   }
 
   const formatFecha = (fechaHora) => {
-    // ✅ Formatear en zona horaria de Chile (America/Santiago)
+    //  Formatear en zona horaria de Chile (America/Santiago)
     const date = new Date(fechaHora)
     return date.toLocaleDateString("es-CL", {
       day: "2-digit",
@@ -229,7 +229,7 @@ export default function AppointmentManager() {
   }
 
   const formatHora = (fechaHora) => {
-    // ✅ Formatear en zona horaria de Chile (America/Santiago)
+    //  Formatear en zona horaria de Chile (America/Santiago)
     const date = new Date(fechaHora)
     return date.toLocaleTimeString("es-CL", {
       hour: "2-digit",

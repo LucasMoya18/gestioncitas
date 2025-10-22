@@ -98,14 +98,14 @@ const AppointmentModal = ({ isOpen, onClose, slotInfo, doctors, onAppointmentCre
                 onClick={onClose}
                 className="btn btn-outline-danger me-2"
               >
-                <span role="img" aria-label="cancel">❌</span> Cancelar
+                <span role="img" aria-label="cancel"></span> Cancelar
               </button>
               <button 
                 type="submit" 
                 disabled={isLoading || !selectedDoctorId || !patientId}
                 className="btn btn-success"
               >
-                <span role="img" aria-label="check">✅</span>
+                <span role="img" aria-label="check"></span>
                 {isLoading ? 'Agendando...' : 'Confirmar Cita'}
               </button>
             </div>

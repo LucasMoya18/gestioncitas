@@ -16,13 +16,13 @@ const API_URL = "http://127.0.0.1:8000/api";
 const api = axios.create({ baseURL: API_URL, headers: { "Content-Type": "application/json" }});
 
 export default function Dashboard() {
-  // ✅ Obtener userData directamente del contexto
+  //  Obtener userData directamente del contexto
   const { 
     user, 
     loading: authLoading, 
     logout, 
-    getUserData,    // ✅ Función del contexto
-    userData,       // ✅ Datos del usuario ya calculados
+    getUserData,    //  Función del contexto
+    userData,       //  Datos del usuario ya calculados
     isAdmin, 
     isMedico, 
     isPaciente 
@@ -43,14 +43,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
-      // ✅ Usar userData del contexto directamente
-      console.log("🔍 Dashboard - User data:", userData);
-      console.log("🔍 Dashboard - isAdmin:", isAdmin);
-      console.log("🔍 Dashboard - isMedico:", isMedico);
-      console.log("🔍 Dashboard - isPaciente:", isPaciente);
+      //  Usar userData del contexto directamente
+      console.log(" Dashboard - User data:", userData);
+      console.log(" Dashboard - isAdmin:", isAdmin);
+      console.log(" Dashboard - isMedico:", isMedico);
+      console.log(" Dashboard - isPaciente:", isPaciente);
       cargarCitas();
     }
-  }, [user, userData]); // ✅ Agregar userData a las dependencias
+  }, [user, userData]); //  Agregar userData a las dependencias
 
   useEffect(() => {
     // Reiniciar página al cambiar citas o tamaño de página
@@ -88,11 +88,11 @@ export default function Dashboard() {
 
   const cargarCitas = async () => {
     try {
-      console.log('📋 Cargando citas...');
+      console.log(' Cargando citas...');
 
       const response = await agendarCitaController.getCitas();
 
-      console.log('✅ Citas cargadas:', response);
+      console.log(' Citas cargadas:', response);
       
       // Filtrar según rol
       let citasFiltradas = response;
@@ -194,9 +194,9 @@ export default function Dashboard() {
     );
   }
 
-  // ✅ Usar userData del contexto directamente
+  //  Usar userData del contexto directamente
   if (!userData) {
-    console.error("❌ No se pudo obtener datos del usuario:", user);
+    console.error(" No se pudo obtener datos del usuario:", user);
     return (
       <div className="text-center p-5">
         <p>Error cargando datos del usuario</p>
@@ -205,7 +205,7 @@ export default function Dashboard() {
     );
   }
 
-  console.log("✅ Renderizando Dashboard - isAdmin:", isAdmin, "userData:", userData);
+  console.log(" Renderizando Dashboard - isAdmin:", isAdmin, "userData:", userData);
 
   return (
     <>

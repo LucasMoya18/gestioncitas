@@ -25,7 +25,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   
-  // ✅ Estado para modal de confirmación de historial
+  //  Estado para modal de confirmación de historial
   const [showHistorialModal, setShowHistorialModal] = useState(false)
   const [historialData, setHistorialData] = useState(null)
 
@@ -86,16 +86,16 @@ export default function RegisterPage() {
       
       await registerController.register(dataToSend)
       
-      console.log("✅ Registro completado exitosamente")
+      console.log(" Registro completado exitosamente")
       setSuccess(true)
       setTimeout(() => router.push("/login"), 1500)
     } catch (err) {
-      console.error("❌ Error capturado en handleSubmit:", err)
+      console.error(" Error capturado en handleSubmit:", err)
       console.error("   - message:", err.message)
       console.error("   - errorData:", err.errorData)
       console.error("   - usuario_id:", err.usuario_id)
       
-      // ✅ Detectar si el error es por RUT con historial
+      //  Detectar si el error es por RUT con historial
       if (err.message === 'rut_con_historial' && err.errorData) {
         console.log("🔔 Detectado RUT con historial, mostrando modal")
         setHistorialData({
@@ -108,7 +108,7 @@ export default function RegisterPage() {
         return
       }
       
-      // ✅ Cualquier otro error
+      //  Cualquier otro error
       setError(err.message || "Error al registrar. Intenta nuevamente.")
     } finally {
       if (!showHistorialModal) {
@@ -117,7 +117,7 @@ export default function RegisterPage() {
     }
   }
 
-  // ✅ Manejar actualización de usuario con historial
+  //  Manejar actualización de usuario con historial
   const handleActualizarHistorial = async () => {
     console.log("🔄 Actualizando usuario con historial:", historialData)
     setShowHistorialModal(false)
@@ -135,11 +135,11 @@ export default function RegisterPage() {
         }
       )
       
-      console.log("✅ Usuario actualizado exitosamente")
+      console.log(" Usuario actualizado exitosamente")
       setSuccess(true)
       setTimeout(() => router.push("/login?registro=actualizado"), 1500)
     } catch (err) {
-      console.error("❌ Error al actualizar usuario:", err)
+      console.error(" Error al actualizar usuario:", err)
       setError(err.message || "Error al actualizar usuario. Intenta nuevamente.")
     } finally {
       setLoading(false)
@@ -147,7 +147,7 @@ export default function RegisterPage() {
   }
 
   const handleCancelarActualizacion = () => {
-    console.log("❌ Usuario canceló la actualización")
+    console.log(" Usuario canceló la actualización")
     setShowHistorialModal(false)
     setHistorialData(null)
     setError("Registro cancelado. El RUT ya existe en el sistema.")
@@ -308,7 +308,7 @@ export default function RegisterPage() {
         </Container>
       </div>
 
-      {/* ✅ Modal de confirmación para usuario con historial */}
+      {/*  Modal de confirmación para usuario con historial */}
       <Modal 
         show={showHistorialModal} 
         onHide={handleCancelarActualizacion}

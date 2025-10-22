@@ -1,10 +1,7 @@
 // src/controllers/agendarCitaController.js
 
-import axios from "axios";
 import Cookies from 'js-cookie';
-
-const API_URL = "http://127.0.0.1:8000/api";
-const api = axios.create({ baseURL: API_URL, headers: { "Content-Type": "application/json" } });
+import { API_URL, api, getAuthHeaders } from '../config/api';
 
 // Normaliza errores de API
 function normalizeError(e, fallback = "Error de solicitud") {
@@ -19,23 +16,6 @@ function normalizeError(e, fallback = "Error de solicitud") {
   err.status = e?.response?.status;
   return err;
 }
-
-// Función helper para obtener headers con autenticación
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token') || Cookies.get('token');
-  
-  if (!token) {
-    console.warn('⚠️ No se encontró token de autenticación');
-    return {
-      'Content-Type': 'application/json'
-    };
-  }
-  
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  };
-};
 
 // Actualizar datos del usuario (edición de médico)
 async function updateUsuario(id, data) {
@@ -59,8 +39,7 @@ export const agendarCitaController = {
 
   async createEspecialidad(payload) {
     try {
-      const headers = getAuthHeaders();
-      const res = await api.post("/especialidades/", payload, { headers });
+      const res = await api.post("/especialidades/", payload);
       return res.data;
     } catch (e) {
       throw normalizeError(e, "Error creando especialidad");
@@ -69,8 +48,7 @@ export const agendarCitaController = {
 
   async updateEspecialidad(id, payload) {
     try {
-      const headers = getAuthHeaders();
-      const res = await api.put(`/especialidades/${id}/`, payload, { headers });
+      const res = await api.put(`/especialidades/${id}/`, payload);
       return res.data;
     } catch (e) {
       throw normalizeError(e, "Error actualizando especialidad");
@@ -79,8 +57,7 @@ export const agendarCitaController = {
 
   async deleteEspecialidad(id) {
     try {
-      const headers = getAuthHeaders();
-      await api.delete(`/especialidades/${id}/`, { headers });
+      await api.delete(`/especialidades/${id}/`);
       return true;
     } catch (e) {
       throw normalizeError(e, "Error eliminando especialidad");
@@ -89,8 +66,7 @@ export const agendarCitaController = {
 
   async getMedicos() {
     try {
-      const headers = getAuthHeaders();
-      const res = await api.get("/medicos/", { headers });
+      const res = await api.get("/medicos/");
       return res.data;
     } catch (e) {
       throw normalizeError(e, "Error cargando médicos");
@@ -99,9 +75,6 @@ export const agendarCitaController = {
 
   async createMedico(payload) {
     try {
-      const headers = getAuthHeaders();
-      
-      // ✅ Asegurar que el payload tenga el formato correcto
       const formattedPayload = {
         usuario: {
           nombre: payload.nombre || payload.usuario?.nombre,
@@ -115,18 +88,17 @@ export const agendarCitaController = {
 
       console.log('📤 Creando médico con payload:', formattedPayload);
       
-      const res = await api.post("/medicos/", formattedPayload, { headers });
+      const res = await api.post("/medicos/", formattedPayload);
       return res.data;
     } catch (e) {
-      console.error('❌ Error creando médico:', e.response?.data);
+      console.error(' Error creando médico:', e.response?.data);
       throw normalizeError(e, "Error creando médico");
     }
   },
 
   async updateMedico(id, payload) {
     try {
-      const headers = getAuthHeaders();
-      const res = await api.put(`/medicos/${id}/`, payload, { headers });
+      const res = await api.put(`/medicos/${id}/`, payload);
       return res.data;
     } catch (e) {
       throw normalizeError(e, "Error actualizando médico");
@@ -135,10 +107,15 @@ export const agendarCitaController = {
 
   async deleteMedico(id) {
     try {
-      const headers = getAuthHeaders();
-      await api.delete(`/medicos/${id}/`, { headers });
+      console.log(' Eliminando médico con ID:', id);
+      
+      // El ID debe ser el del médico (primary key), no del usuario
+      await api.delete(`/medicos/${id}/`);
+      
+      console.log(' Médico eliminado correctamente');
       return true;
     } catch (e) {
+      console.error(' Error eliminando médico:', e.response?.data);
       throw normalizeError(e, "Error eliminando médico");
     }
   },
@@ -151,14 +128,13 @@ export const agendarCitaController = {
         throw new Error('No hay token de autenticación. Por favor inicie sesión.');
       }
 
-      console.log('📋 Obteniendo citas con headers:', headers);
+      console.log(' Obteniendo citas con headers:', headers);
       
-      const res = await api.get("/citas/", { headers });
+      const res = await api.get("/citas/");
       return res.data;
     } catch (e) {
       console.error('getCitas error:', e.response?.data || e.message);
       
-      // Si es error 401, lanzar error específico
       if (e.response?.status === 401) {
         throw new Error('Authentication credentials were not provided.');
       }
@@ -178,8 +154,7 @@ export const agendarCitaController = {
 
   async agendarCita(citaData) {
     try {
-      const headers = getAuthHeaders();
-      const res = await api.post("/citas/", citaData, { headers });
+      const res = await api.post("/citas/", citaData);
       return res.data;
     } catch (e) {
       throw normalizeError(e, "Error agendando cita");
@@ -209,34 +184,32 @@ export const agendarCitaController = {
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
-        console.error('❌ Respuesta no es JSON:', text.substring(0, 200));
+        console.error(' Respuesta no es JSON:', text.substring(0, 200));
         throw new Error('El servidor devolvió una respuesta inválida');
       }
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('❌ Error actualizando cita:', errorData);
+        console.error(' Error actualizando cita:', errorData);
         throw errorData;
       }
 
       const data = await response.json();
-      console.log('✅ Cita actualizada:', data);
+      console.log(' Cita actualizada:', data);
       return data;
     } catch (error) {
-      console.error('❌ Error en updateCita:', error);
+      console.error(' Error en updateCita:', error);
       throw error;
     }
   },
 
   async getMedicoEspecialidades(medicoId = null) {
     try {
-      const headers = getAuthHeaders();
-      // ✅ Cambiar de /medicos-especialidades/ a /medico-especialidades/
       const url = medicoId 
         ? `/medico-especialidades/?medico=${medicoId}`
         : '/medico-especialidades/';
       
-      const res = await api.get(url, { headers });
+      const res = await api.get(url);
       return res.data;
     } catch (e) {
       throw normalizeError(e, "Error cargando especialidades del médico");
@@ -245,9 +218,7 @@ export const agendarCitaController = {
 
   async createMedicoEspecialidad(payload) {
     try {
-      const headers = getAuthHeaders();
-      // ✅ Cambiar de /medicos-especialidades/ a /medico-especialidades/
-      const res = await api.post("/medico-especialidades/", payload, { headers });
+      const res = await api.post("/medico-especialidades/", payload);
       return res.data;
     } catch (e) {
       throw normalizeError(e, "Error asignando especialidad");
@@ -256,9 +227,7 @@ export const agendarCitaController = {
 
   async deleteMedicoEspecialidad(id) {
     try {
-      const headers = getAuthHeaders();
-      // ✅ Cambiar de /medicos-especialidades/ a /medico-especialidades/
-      await api.delete(`/medico-especialidades/${id}/`, { headers });
+      await api.delete(`/medico-especialidades/${id}/`);
       return true;
     } catch (e) {
       throw normalizeError(e, "Error eliminando especialidad");

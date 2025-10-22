@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // ✅ Función para obtener datos del usuario
+  //  Función para obtener datos del usuario
   const getUserData = () => {
     if (!user) return null
     
@@ -64,7 +64,7 @@ export function AuthProvider({ children }) {
     return null
   }
 
-  // ✅ Calcular userData, isAdmin, isMedico, isPaciente usando useMemo
+  //  Calcular userData, isAdmin, isMedico, isPaciente usando useMemo
   const { userData, isAdmin, isMedico, isPaciente } = useMemo(() => {
     const data = getUserData()
     return {
@@ -87,7 +87,7 @@ export function AuthProvider({ children }) {
 
       // Verificar que existe token válido
       if (rawToken) {
-        console.log('✅ Token encontrado en init:', rawToken.substring(0, 20) + '...')
+        console.log(' Token encontrado en init:', rawToken.substring(0, 20) + '...')
       } else {
         console.warn('⚠️ No se encontró token en init')
       }
@@ -98,7 +98,7 @@ export function AuthProvider({ children }) {
           const parsed = JSON.parse(rawUser)
           setUser(parsed)
         } catch (e) {
-          console.error('❌ Error parseando usuario:', e)
+          console.error(' Error parseando usuario:', e)
           Cookies.remove('user')
           Cookies.remove('token')
           if (typeof window !== 'undefined') {
@@ -123,7 +123,7 @@ export function AuthProvider({ children }) {
 
     // Verificar que se recibió token
     if (!token) {
-      console.error('❌ No se recibió token en login')
+      console.error(' No se recibió token en login')
       throw new Error("Token de autenticación no recibido")
     }
 
@@ -138,7 +138,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('token', token)
     }
 
-    console.log('✅ Login exitoso. Token guardado:', token.substring(0, 20) + '...')
+    console.log(' Login exitoso. Token guardado:', token.substring(0, 20) + '...')
   }
 
   const logout = () => {
@@ -149,18 +149,18 @@ export function AuthProvider({ children }) {
       localStorage.removeItem('user')
       localStorage.removeItem('token')
     }
-    console.log('✅ Sesión cerrada')
+    console.log(' Sesión cerrada')
   }
 
-  // ✅ Exportar getUserData en el contexto
+  //  Exportar getUserData en el contexto
   return (
     <AuthContext.Provider value={{
       user,
       loading,
       login,
       logout,
-      getUserData,      // ✅ Exportar función
-      userData,         // ✅ Exportar datos calculados
+      getUserData,      //  Exportar función
+      userData,         //  Exportar datos calculados
       isAdmin,
       isMedico,
       isPaciente

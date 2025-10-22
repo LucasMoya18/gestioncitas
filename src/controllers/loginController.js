@@ -1,8 +1,7 @@
 import axios from 'axios';
 import { normalizeRutWithDash } from '../utils/rutFormatter';
 import Cookies from 'js-cookie';
-
-const API_URL = 'http://127.0.0.1:8000/api';
+import { API_URL } from '../config/api';
 
 async function loginUsuario(rut, password) {
   try {
@@ -18,7 +17,6 @@ async function loginUsuario(rut, password) {
     
     const { user, token, access, message } = res.data || {};
     
-    // El token puede venir como 'token' o 'access'
     const authToken = token || access;
     
     if (!user) {
@@ -26,23 +24,21 @@ async function loginUsuario(rut, password) {
     }
     
     if (!authToken) {
-      console.error('❌ No se recibió token. Respuesta:', res.data);
+      console.error(' No se recibió token. Respuesta:', res.data);
       throw new Error('No se recibió token de autenticación del servidor');
     }
     
-    // ✅ Guardar token INMEDIATAMENTE
     localStorage.setItem('token', authToken);
     Cookies.set('token', authToken, { expires: 7, secure: false, sameSite: 'lax', path: '/' });
     
-    console.log('✅ Token guardado exitosamente:', authToken.substring(0, 30) + '...');
-    console.log('✅ Verificando guardado en localStorage:', localStorage.getItem('token')?.substring(0, 30) + '...');
-    console.log('✅ Verificando guardado en Cookies:', Cookies.get('token')?.substring(0, 30) + '...');
+    console.log(' Token guardado exitosamente:', authToken.substring(0, 30) + '...');
+    console.log(' Verificando guardado en localStorage:', localStorage.getItem('token')?.substring(0, 30) + '...');
+    console.log(' Verificando guardado en Cookies:', Cookies.get('token')?.substring(0, 30) + '...');
     
-    // ✅ Devolver en formato esperado
     return { 
       ok: true, 
       user, 
-      access: authToken, // Siempre usar 'access'
+      access: authToken,
       message 
     };
   } catch (error) {
@@ -55,7 +51,7 @@ async function loginUsuario(rut, password) {
        status === 401 ? 'Contraseña incorrecta.' :
        'Error al iniciar sesión. Intenta nuevamente.');
     
-    console.error('❌ Error en login:', errorMessage);
+    console.error(' Error en login:', errorMessage);
     throw new Error(errorMessage);
   }
 }
@@ -82,21 +78,19 @@ export const loginController2 = {
 
       const data = await response.json();
       
-      // Verificar que se recibió el token
       if (!data.access) {
         throw new Error('No se recibió token de autenticación');
       }
 
-      // Guardar token en localStorage y cookies
       const token = data.access;
       localStorage.setItem('token', token);
       Cookies.set('token', token, { expires: 7, secure: false, sameSite: 'lax', path: '/' });
 
-      console.log('✅ Token guardado:', token.substring(0, 20) + '...');
+      console.log(' Token guardado:', token.substring(0, 20) + '...');
 
       return data;
     } catch (error) {
-      console.error('❌ Error en login:', error);
+      console.error(' Error en login:', error);
       throw error;
     }
   }

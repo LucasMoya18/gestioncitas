@@ -14,7 +14,7 @@ export default function AppointmentBooking() {
   const [showRutModal, setShowRutModal] = useState(false)
   const [rut, setRut] = useState("")
   const [tempUserData, setTempUserData] = useState(null)
-  const [tempPacienteId, setTempPacienteId] = useState(null) // ✅ Nuevo estado
+  const [tempPacienteId, setTempPacienteId] = useState(null) //  Nuevo estado
 
   // Estados para el formulario de cita
   const [especialidades, setEspecialidades] = useState([])
@@ -130,7 +130,7 @@ export default function AppointmentBooking() {
 
     const especialidad = especialidades.find(e => e.nombre === especialidadSeleccionada)
     if (!especialidad) {
-      console.log("❌ Especialidad no encontrada:", especialidadSeleccionada)
+      console.log(" Especialidad no encontrada:", especialidadSeleccionada)
       setMedicoEspecialidadId(null)
       return
     }
@@ -141,14 +141,14 @@ export default function AppointmentBooking() {
     })
 
     if (!medicoObj) {
-      console.log("❌ Objeto Médico no encontrado para usuario_id:", medicoSeleccionado)
+      console.log(" Objeto Médico no encontrado para usuario_id:", medicoSeleccionado)
       setMedicoEspecialidadId(null)
       return
     }
 
     const medicoId = medicoObj.id
 
-    console.log("🔍 Buscando MedicoEspecialidad para:", {
+    console.log(" Buscando MedicoEspecialidad para:", {
       medicoUsuarioId: Number(medicoSeleccionado),
       medicoId: medicoId,
       especialidadId: especialidad.id
@@ -173,10 +173,10 @@ export default function AppointmentBooking() {
     })
 
     if (medEsp) {
-      console.log("✅ MedicoEspecialidad encontrada:", medEsp)
+      console.log(" MedicoEspecialidad encontrada:", medEsp)
       setMedicoEspecialidadId(medEsp.id)
     } else {
-      console.log("❌ No se encontró MedicoEspecialidad")
+      console.log(" No se encontró MedicoEspecialidad")
       console.log("Todas las MedicoEspecialidades:", medicoEspecialidades)
       console.log("Médico objeto:", medicoObj)
       setMedicoEspecialidadId(null)
@@ -211,7 +211,7 @@ export default function AppointmentBooking() {
       })
 
       if (!medicoObj) {
-        console.error("❌ No se encontró el objeto médico")
+        console.error(" No se encontró el objeto médico")
         setError("Error al cargar horarios: médico no encontrado")
         return
       }
@@ -256,13 +256,13 @@ export default function AppointmentBooking() {
       return
     }
 
-    // ✅ Si no hay usuario autenticado, mostrar modal de RUT
+    //  Si no hay usuario autenticado, mostrar modal de RUT
     if (!user) {
       setShowRutModal(true)
       return
     }
 
-    // ✅ Si hay usuario autenticado, proceder directamente
+    //  Si hay usuario autenticado, proceder directamente
     await agendarCitaDirecta()
   }
 
@@ -276,7 +276,7 @@ export default function AppointmentBooking() {
     setError("")
     
     try {
-      console.log("🔍 Verificando RUT:", rut)
+      console.log(" Verificando RUT:", rut)
       const resultado = await agendarCitaController.verificarOCrearRut(rut)
       
       console.log("📥 Resultado completo:", resultado)
@@ -287,30 +287,30 @@ export default function AppointmentBooking() {
         setTempUserData(resultado.usuario)
         setTempPacienteId(resultado.paciente_id)
         
-        console.log("✅ Estados actualizados:")
+        console.log(" Estados actualizados:")
         console.log("   - tempUserData:", resultado.usuario)
         console.log("   - tempPacienteId:", resultado.paciente_id)
         
         setShowRutModal(false)
         
-        // ✅ Llamar directamente pasando el paciente_id como parámetro
+        //  Llamar directamente pasando el paciente_id como parámetro
         setTimeout(async () => {
           console.log("🚀 Iniciando agendamiento con paciente_id:", resultado.paciente_id)
           await agendarCitaDirecta(resultado.paciente_id)
         }, 100)
       } else {
-        console.error("❌ Datos incompletos:", resultado)
+        console.error(" Datos incompletos:", resultado)
         setError("Error al procesar el RUT: datos incompletos")
       }
     } catch (err) {
-      console.error("❌ Error verificando RUT:", err)
+      console.error(" Error verificando RUT:", err)
       setError(err?.error || err?.message || "Error al verificar RUT")
     } finally {
       setLoading(false)
     }
   }
 
-  // ✅ Modificar agendarCitaDirecta para aceptar pacienteIdParam
+  //  Modificar agendarCitaDirecta para aceptar pacienteIdParam
   const agendarCitaDirecta = async (pacienteIdParam = null) => {
     setLoading(true)
     setError("")
@@ -354,25 +354,25 @@ export default function AppointmentBooking() {
         prioridad: "Normal"
       }
 
-      // ✅ Determinar el paciente con prioridad al parámetro
+      //  Determinar el paciente con prioridad al parámetro
       let pacienteId = null
       
       if (pacienteIdParam) {
         // Parámetro directo (cuando viene desde handleRutSubmit)
         pacienteId = Number(pacienteIdParam)
-        console.log("✅ Usando paciente_id del parámetro:", pacienteId)
+        console.log(" Usando paciente_id del parámetro:", pacienteId)
       } else if (user && userData) {
         // Usuario autenticado
         pacienteId = userData.pacienteId || userData.id
-        console.log("✅ Usuario autenticado - paciente_id:", pacienteId)
+        console.log(" Usuario autenticado - paciente_id:", pacienteId)
       } else if (tempPacienteId) {
         // Usuario temporal (sin login) - desde estado
         pacienteId = Number(tempPacienteId)
-        console.log("✅ Usuario temporal - paciente_id desde estado:", pacienteId)
+        console.log(" Usuario temporal - paciente_id desde estado:", pacienteId)
       }
       
       if (!pacienteId) {
-        console.error("❌ Estados actuales:")
+        console.error(" Estados actuales:")
         console.error("   - user:", user)
         console.error("   - userData:", userData)
         console.error("   - tempPacienteId:", tempPacienteId)
@@ -385,7 +385,7 @@ export default function AppointmentBooking() {
       console.log("📤 Datos de cita a enviar:", citaData)
 
       const resultado = await agendarCitaController.agendarCita(citaData)
-      console.log("✅ Cita creada:", resultado)
+      console.log(" Cita creada:", resultado)
       setSuccess('¡Cita agendada exitosamente!')
       
       // Limpieza del formulario
@@ -397,7 +397,7 @@ export default function AppointmentBooking() {
       setTempPacienteId(null)
       setRut("")
     } catch (err) {
-      console.error("❌ Error agendando cita:", err)
+      console.error(" Error agendando cita:", err)
       const errorMsg = err?.fechaHora?.[0] || err?.paciente?.[0] || err?.usuario_id?.[0] || err?.error || err?.message || "Error al agendar la cita"
       setError(errorMsg)
     } finally {

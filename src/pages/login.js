@@ -52,14 +52,14 @@ export default function LoginPage() {
     try {
       const response = await loginController.login(formData.rut, formData.password)
       
-      // ✅ Verificar si la respuesta es exitosa
+      //  Verificar si la respuesta es exitosa
       if (!response.ok) {
         throw new Error(response.message || 'Error al iniciar sesión')
       }
       
       const { user, access, token, message } = response;
       
-      // ✅ El token puede venir como 'access' o 'token'
+      //  El token puede venir como 'access' o 'token'
       const authToken = access || token;
       
       if (!authToken) {
@@ -71,7 +71,7 @@ export default function LoginPage() {
       
       // Mostrar mensaje de bienvenida si existe
       if (message) {
-        console.log("✅", message);
+        console.log("", message);
       }
       
       setTimeout(() => {
@@ -89,7 +89,7 @@ export default function LoginPage() {
         }
       }, 100);
     } catch (err) {
-      console.error('❌ Error en login:', err);
+      console.error(' Error en login:', err);
       setError(err.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)

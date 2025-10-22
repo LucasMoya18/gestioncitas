@@ -1,29 +1,8 @@
-import axios from "axios";
-import Cookies from 'js-cookie';
-
-const API_URL = "http://127.0.0.1:8000/api";
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token') || Cookies.get('token');
-  
-  if (!token) {
-    console.error('❌ No se encontró token de autenticación en localStorage ni cookies');
-    console.log('localStorage.token:', localStorage.getItem('token'));
-    console.log('Cookies.token:', Cookies.get('token'));
-    return {};
-  }
-  
-  console.log('✅ Token encontrado:', token.substring(0, 20) + '...');
-  
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
-};
+import { API_URL, getAuthHeaders } from '../config/api';
 
 export const boxesController = {
   async list(medicoId) {
-    console.log('📋 Listando boxes para médico:', medicoId);
+    console.log(' Listando boxes para médico:', medicoId);
     const headers = getAuthHeaders();
     
     if (!headers.Authorization) {
@@ -36,18 +15,18 @@ export const boxesController = {
     });
     
     if (res.status === 401) {
-      console.error('❌ 401 Unauthorized - Token inválido o expirado');
+      console.error(' 401 Unauthorized - Token inválido o expirado');
       throw new Error('Sesión expirada. Por favor inicie sesión nuevamente.');
     }
     
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      console.error('❌ Error en list:', errorData);
+      console.error(' Error en list:', errorData);
       throw new Error(errorData.detail || 'Error obteniendo boxes');
     }
     
     const data = await res.json();
-    console.log('✅ Boxes obtenidos:', data.length);
+    console.log(' Boxes obtenidos:', data.length);
     return data;
   },
   
@@ -84,7 +63,6 @@ export const boxesController = {
       throw new Error('No hay sesión activa. Por favor inicie sesión nuevamente.');
     }
     
-    // Obtener el box completo
     const getRes = await fetch(`${API_URL}/boxes/${id}/`, {
       headers,
       credentials: 'include'
@@ -98,7 +76,6 @@ export const boxesController = {
     
     const currentBox = await getRes.json();
     
-    // Combinar datos
     const updateData = {
       ...currentBox,
       ...payload

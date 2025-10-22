@@ -206,16 +206,35 @@ export default function AdminPanel() {
   const removeMedico = async (m) => {
     const ok = await confirm({
       title: `¿Eliminar al médico ${m.usuario?.nombre || m.nombre}?`,
-      text: 'Esta acción no se puede deshacer.',
+      text: 'Esta acción no se puede deshacer. Se eliminarán también sus horarios y especialidades.',
       variant: 'danger',
       confirmButtonText: 'Sí, eliminar'
     })
     if (!ok) return
+    
     try {
-      await agendarCitaController.deleteMedico(m.usuario?.id || m.id)
+      setLoading(true)
+      setErr("")
+      
+      //  Usar el ID del médico (pk), no del usuario
+      const medicoId = m.id || m.usuario?.id
+      
+      console.log(' Eliminando médico:', medicoId, m)
+      
+      await agendarCitaController.deleteMedico(medicoId)
+      
+      console.log(' Médico eliminado, recargando datos...')
+      
+      //  Recargar datos después de eliminar
       await cargarDatos()
+      
+      setErr("") // Limpiar error si había alguno
+      
     } catch (error) {
-      setErr("Error eliminando médico")
+      console.error(' Error eliminando médico:', error)
+      setErr("Error eliminando médico: " + (error?.message || error))
+    } finally {
+      setLoading(false)
     }
   }
 
