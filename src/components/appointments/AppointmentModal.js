@@ -83,7 +83,7 @@ const AppointmentModal = ({ isOpen, onClose, slotInfo, doctors, onAppointmentCre
               </div>
               {error && (
                 <div className="alert alert-danger py-2 d-flex align-items-center gap-2">
-                  <span role="img" aria-label="alert">⚠️</span> {error}
+                  <span role="img" aria-label="alert"></span> {error}
                 </div>
               )}
               {!user && (

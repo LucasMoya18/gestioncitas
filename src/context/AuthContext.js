@@ -89,7 +89,7 @@ export function AuthProvider({ children }) {
       if (rawToken) {
         console.log(' Token encontrado en init:', rawToken.substring(0, 20) + '...')
       } else {
-        console.warn('⚠️ No se encontró token en init')
+        console.warn(' No se encontró token en init')
       }
 
       // Restaurar user si existe

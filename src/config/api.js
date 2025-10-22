@@ -9,7 +9,7 @@ export const getAuthHeaders = () => {
   const token = localStorage.getItem('token') || Cookies.get('token');
   
   if (!token) {
-    console.warn('⚠️ No se encontró token de autenticación');
+    console.warn(' No se encontró token de autenticación');
     return {
       'Content-Type': 'application/json'
     };
