@@ -100,9 +100,25 @@ export const agendarCitaController = {
   async createMedico(payload) {
     try {
       const headers = getAuthHeaders();
-      const res = await api.post("/medicos/", payload, { headers });
+      
+      // ✅ Asegurar que el payload tenga el formato correcto
+      const formattedPayload = {
+        usuario: {
+          nombre: payload.nombre || payload.usuario?.nombre,
+          correo: payload.correo || payload.usuario?.correo,
+          rut: payload.rut || payload.usuario?.rut,
+          telefono: payload.telefono || payload.usuario?.telefono || '',
+          password: payload.password || payload.usuario?.password,
+          rol: 'Medico'
+        }
+      };
+
+      console.log('📤 Creando médico con payload:', formattedPayload);
+      
+      const res = await api.post("/medicos/", formattedPayload, { headers });
       return res.data;
     } catch (e) {
+      console.error('❌ Error creando médico:', e.response?.data);
       throw normalizeError(e, "Error creando médico");
     }
   },
