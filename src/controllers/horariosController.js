@@ -1,7 +1,22 @@
 import axios from "axios";
+import Cookies from 'js-cookie';
 
 const API_URL = "http://127.0.0.1:8000/api";
 const http = axios.create({ baseURL: API_URL, headers: { "Content-Type": "application/json" } });
+
+// ✅ Agregar helper para obtener headers con token
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token') || Cookies.get('token');
+  
+  if (!token) {
+    return { 'Content-Type': 'application/json' };
+  }
+  
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  };
+};
 
 const parseTime = (t) => {
   const [h, m] = String(t).split(":").map(Number);
@@ -19,6 +34,8 @@ export const horariosController = {
       medico_id: medicoId,
       medico_especialidad_id: medicoEspecialidadId,
       fecha
+    }, {
+      headers: getAuthHeaders() // ✅ Agregar headers con token
     });
     return res.data;
   },
@@ -27,7 +44,9 @@ export const horariosController = {
    * Valida si un horario específico está disponible (lado servidor)
    */
   async validarHorario(medicoId, fechaHora) {
-    const res = await http.post("/citas/validar_horario/", { medico_id: medicoId, fechaHora });
+    const res = await http.post("/citas/validar_horario/", { medico_id: medicoId, fechaHora }, {
+      headers: getAuthHeaders() // ✅ Agregar headers con token
+    });
     return res.data;
   },
 
@@ -35,7 +54,10 @@ export const horariosController = {
    * Obtiene horarios configurados para una especialidad de médico
    */
   async getHorarios(medicoEspecialidadId) {
-    const res = await http.get("/horarios/", { params: { medico_especialidad: medicoEspecialidadId } });
+    const res = await http.get("/horarios/", { 
+      params: { medico_especialidad: medicoEspecialidadId },
+      headers: getAuthHeaders() // ✅ Agregar headers con token
+    });
     return res.data || [];
   },
 
@@ -44,22 +66,24 @@ export const horariosController = {
    */
   async createHorario(payload) {
     try {
-      const { data } = await http.post("/horarios/", payload)
-      return data
+      const { data } = await http.post("/horarios/", payload, {
+        headers: getAuthHeaders() // ✅ Agregar headers con token
+      });
+      return data;
     } catch (e) {
       // Normalizar mensaje de error
-      const status = e?.response?.status
+      const status = e?.response?.status;
       const msg =
         e?.response?.data?.non_field_errors?.[0] ||
         e?.response?.data?.detail ||
         e?.response?.data?.error ||
         e?.message ||
-        "Error creando horario"
+        "Error creando horario";
 
-      const err = new Error(msg)
-      err.response = e?.response
-      err.status = status
-      throw err
+      const err = new Error(msg);
+      err.response = e?.response;
+      err.status = status;
+      throw err;
     }
   },
 
@@ -67,7 +91,9 @@ export const horariosController = {
    * Actualiza un horario existente
    */
   async updateHorario(id, payload) {
-    const res = await http.put(`/horarios/${id}/`, payload);
+    const res = await http.put(`/horarios/${id}/`, payload, {
+      headers: getAuthHeaders() // ✅ Agregar headers con token
+    });
     return res.data;
   },
 
@@ -75,7 +101,9 @@ export const horariosController = {
    * Elimina un horario
    */
   async deleteHorario(id) {
-    await http.delete(`/horarios/${id}/`);
+    await http.delete(`/horarios/${id}/`, {
+      headers: getAuthHeaders() // ✅ Agregar headers con token
+    });
     return { ok: true };
   },
 
