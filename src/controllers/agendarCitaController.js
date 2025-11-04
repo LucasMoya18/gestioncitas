@@ -5,15 +5,28 @@ import { API_URL, api, getAuthHeaders } from '../config/api';
 
 // Normaliza errores de API
 function normalizeError(e, fallback = "Error de solicitud") {
-  const msg =
-    e?.response?.data?.non_field_errors?.[0] ||
-    e?.response?.data?.detail ||
-    e?.response?.data?.error ||
+  // Intenta extraer el primer mensaje útil del backend
+  const data = e?.response?.data;
+  let msg =
+    data?.non_field_errors?.[0] ||
+    data?.detail ||
+    data?.error ||
+    // si es un dict de errores de campo, toma el primero
+    (data && typeof data === 'object'
+      ? (() => {
+          const firstKey = Object.keys(data)[0];
+          const val = data[firstKey];
+          if (Array.isArray(val) && val.length) return `${firstKey}: ${val[0]}`;
+          if (typeof val === 'string') return `${firstKey}: ${val}`;
+          return null;
+        })()
+      : null) ||
     e?.message ||
     fallback;
   const err = new Error(msg);
   err.response = e?.response;
   err.status = e?.response?.status;
+  err.data = data;
   return err;
 }
 
@@ -145,18 +158,53 @@ export const agendarCitaController = {
 
   async verificarRut(rut) {
     try {
-      const res = await api.get(`/verificar-rut/?rut=${rut}`);
+      const res = await api.get(`/verificar-rut/?rut=${encodeURIComponent(rut)}`);
       return res.data;
     } catch (e) {
       throw normalizeError(e, "Error verificando RUT");
     }
   },
 
-  async agendarCita(citaData) {
+  // Alias para el flujo del modal (mantiene compatibilidad con el componente)
+  async verificarOCrearRut(rut) {
     try {
-      const res = await api.post("/citas/", citaData);
+      // usar endpoint dedicado que crea si no existe
+      const res = await api.post(`/verificar-o-crear-rut/`, { rut });
       return res.data;
     } catch (e) {
+      throw normalizeError(e, "Error verificando/creando RUT");
+    }
+  },
+
+  async agendarCita(citaData) {
+    try {
+      // Normaliza payload a nombres reales del modelo DRF (fechaHora, usuario)
+      const payload = {
+        medico: citaData.medico ?? citaData.medico_id,
+        medico_especialidad:
+          citaData.medico_especialidad ??
+          citaData.medicoEspecialidad ??
+          citaData.medicoEspecialidadId,
+        usuario:
+          citaData.usuario ??
+          citaData.usuario_id ??
+          citaData.paciente ??             // compat
+          citaData.paciente_id,            // compat
+        fechaHora:
+          citaData.fechaHora ??
+          citaData.fecha_hora ??           // compat
+          citaData.fecha,
+        descripcion: citaData.descripcion ?? '',
+        prioridad: citaData.prioridad ?? 'Normal',
+      };
+
+      Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+
+      const res = await api.post("/citas/", payload);
+      return res.data;
+    } catch (e) {
+      console.error('Error agendando cita (payload enviado):', e?.config?.data);
+      console.error('Respuesta del servidor:', e?.response?.status, e?.response?.data);
       throw normalizeError(e, "Error agendando cita");
     }
   },
@@ -200,6 +248,18 @@ export const agendarCitaController = {
     } catch (error) {
       console.error(' Error en updateCita:', error);
       throw error;
+    }
+  },
+
+  reprogramarCita: async (citaId, nuevaFechaHora) => {
+    try {
+      const res = await api.patch(`/citas/${citaId}/reprogramar/`, {
+        fechaHora: nuevaFechaHora
+      });
+      return res.data;
+    } catch (e) {
+      console.error('Error reprogramando cita:', e?.response?.status, e?.response?.data);
+      throw normalizeError(e, "Error reprogramando cita");
     }
   },
 

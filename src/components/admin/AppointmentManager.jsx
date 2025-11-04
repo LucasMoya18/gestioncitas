@@ -16,7 +16,8 @@ import {
   FaSearch,
   FaFilter,
   FaSync,
-  FaFileAlt
+  FaFileAlt,
+  FaCalendarAlt  // Agregar este icono
 } from "react-icons/fa"
 import { agendarCitaController } from "../../controllers/agendarCitaController"
 
@@ -35,12 +36,18 @@ export default function AppointmentManager() {
   // Estados del modal
   const [showModal, setShowModal] = useState(false)
   const [selectedCita, setSelectedCita] = useState(null)
-  const [modalMode, setModalMode] = useState("view") // 'view', 'edit', 'confirm', 'cancel'
+  const [modalMode, setModalMode] = useState("view") // 'view', 'edit', 'confirm', 'cancel', 'reschedule'
   const [editForm, setEditForm] = useState({
     descripcion: "",
     prioridad: "Normal",
     estado: "Pendiente"
   })
+
+  // Estados para reprogramación
+  const [rescheduleDate, setRescheduleDate] = useState("")
+  const [rescheduleTime, setRescheduleTime] = useState("")
+  const [availableSlots, setAvailableSlots] = useState([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
 
   // Controles de orden y paginación
   const [sortOrder, setSortOrder] = useState('desc'); // 'desc' | 'asc'
@@ -145,6 +152,22 @@ export default function AppointmentManager() {
       prioridad: cita.prioridad || "Normal",
       estado: cita.estado || "Pendiente"
     })
+    
+    // Inicializar fecha y hora para reprogramación
+    if (mode === 'reschedule') {
+      const fecha = new Date(cita.fechaHora)
+      const fechaStr = fecha.toISOString().split('T')[0]
+      setRescheduleDate(fechaStr)
+      setRescheduleTime("")
+      setAvailableSlots([])
+      
+      // ✅ Cargar slots automáticamente para la fecha actual
+      // Usar setTimeout para asegurar que el estado se actualizó
+      setTimeout(() => {
+        loadRescheduleSlotsWithDate(fechaStr, cita)
+      }, 100)
+    }
+    
     setShowModal(true)
     setError("")
     setSuccess("")
@@ -154,63 +177,94 @@ export default function AppointmentManager() {
     setShowModal(false)
     setSelectedCita(null)
     setEditForm({ descripcion: "", prioridad: "Normal", estado: "Pendiente" })
+    setRescheduleDate("")
+    setRescheduleTime("")
+    setAvailableSlots([])
     setError("")
     setSuccess("")
   }
 
-  const handleConfirmCita = async () => {
-    if (!selectedCita) return
-    setLoading(true)
+  // ✅ Función helper que acepta la fecha y cita como parámetros
+  const loadRescheduleSlotsWithDate = async (fecha, cita = selectedCita) => {
+    if (!cita || !fecha) return
+    
+    setLoadingSlots(true)
     setError("")
     try {
-      await agendarCitaController.updateCita(selectedCita.id, {
-        estado: "Confirmada"
+      const response = await agendarCitaController.getMedicos()
+      const medico = response.find(m => m.id === cita.medico)
+      
+      if (!medico) {
+        setError("No se encontró el médico")
+        return
+      }
+
+      // Obtener medico_especialidad_id
+      const medicoEspecialidadId = cita.medico_especialidad
+
+      const slotsResponse = await fetch(`http://127.0.0.1:8000/api/citas/horarios_disponibles/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          medico_id: medico.id,
+          medico_especialidad_id: medicoEspecialidadId,
+          fecha: fecha
+        })
       })
-      setSuccess('Cita confirmada')
-      await loadCitas()
-      setTimeout(() => { closeModal() }, 800)
-    } catch (e) {
-      const msg = "Error confirmando cita: " + (e?.detail || e?.message || "Error desconocido")
-      setError(msg)
+
+      if (!slotsResponse.ok) {
+        throw new Error('Error obteniendo horarios disponibles')
+      }
+
+      const slotsData = await slotsResponse.json()
+      setAvailableSlots(slotsData.disponibles || [])
+      
+      if (slotsData.disponibles && slotsData.disponibles.length === 0) {
+        setError('No hay horarios disponibles para esta fecha')
+      }
+    } catch (err) {
+      console.error("Error cargando slots:", err)
+      setError("Error cargando horarios disponibles: " + (err?.message || "Error desconocido"))
+      setAvailableSlots([])
     } finally {
-      setLoading(false)
+      setLoadingSlots(false)
     }
   }
 
-  const handleCancelCita = async () => {
-    if (!selectedCita) return
-    setLoading(true)
-    setError("")
-    try {
-      await agendarCitaController.updateCita(selectedCita.id, {
-        estado: "Cancelada"
-      })
-      setSuccess('Cita cancelada')
-      await loadCitas()
-      setTimeout(() => { closeModal() }, 800)
-    } catch (e) {
-      const msg = "Error cancelando cita: " + (e?.detail || e?.message || "Error desconocido")
-      setError(msg)
-    } finally {
-      setLoading(false)
-    }
+  // Cargar slots disponibles cuando se selecciona una fecha para reprogramar
+  const loadRescheduleSlots = async (fecha) => {
+    await loadRescheduleSlotsWithDate(fecha, selectedCita)
   }
 
-  const handleUpdateCita = async () => {
+  const handleRescheduleCita = async () => {
     if (!selectedCita) return
+    
+    if (!rescheduleDate || !rescheduleTime) {
+      setError("Debe seleccionar fecha y hora")
+      return
+    }
+
     setLoading(true)
     setError("")
     try {
-      await agendarCitaController.updateCita(selectedCita.id, {
-        descripcion: editForm.descripcion,
-        prioridad: editForm.prioridad,
-        estado: editForm.estado
-      })
-      setSuccess('Cita actualizada')
+      // Encontrar el slot seleccionado para obtener fechaHora completo en UTC
+      const slotSeleccionado = availableSlots.find(s => s.horaInicio === rescheduleTime)
+      if (!slotSeleccionado) {
+        throw new Error("Horario seleccionado no válido")
+      }
+
+      const nuevaFechaHora = slotSeleccionado.fechaHora
+
+      await agendarCitaController.reprogramarCita(selectedCita.id, nuevaFechaHora)
+      
+      setSuccess('Cita reprogramada exitosamente')
       await loadCitas()
-      setTimeout(() => { closeModal() }, 800)
+      setTimeout(() => { closeModal() }, 1000)
     } catch (e) {
-      const msg = "Error actualizando cita: " + (e?.detail || e?.message || "Error desconocido")
+      const msg = e?.detail || e?.message || "Error reprogramando cita"
       setError(msg)
     } finally {
       setLoading(false)
@@ -474,12 +528,12 @@ export default function AppointmentManager() {
                           {formatHora(cita.fechaHora)}
                         </td>
                         <td>
-                          <Badge bg={cita.estado === 'Confirmada' ? 'success' : cita.estado === 'Pendiente' ? 'warning' : cita.estado === 'Cancelada' ? 'danger' : 'secondary'}>
+                          <Badge bg={cita.estado === 'Confirmada' ? 'success' : cita.estado === 'Pendiente' ? 'warning' : cita.estado === 'Cancelada' ? 'danger' : cita.estado === 'Reprogramada' ? 'info' : 'secondary'}>
                             {cita.estado}
                           </Badge>
                         </td>
                         <td>
-                          <div className="d-flex gap-1 justify-content-center">
+                          <div className="d-flex gap-1 justify-content-center flex-wrap">
                             <OverlayTrigger
                               placement="top"
                               overlay={<Tooltip>Ver detalles</Tooltip>}
@@ -504,6 +558,21 @@ export default function AppointmentManager() {
                                   onClick={() => openModal(cita, "confirm")}
                                 >
                                   <FaCheck />
+                                </Button>
+                              </OverlayTrigger>
+                            )}
+
+                            {cita.estado !== "Cancelada" && (
+                              <OverlayTrigger
+                                placement="top"
+                                overlay={<Tooltip>Reprogramar cita</Tooltip>}
+                              >
+                                <Button
+                                  size="sm"
+                                  variant="outline-primary"
+                                  onClick={() => openModal(cita, "reschedule")}
+                                >
+                                  <FaCalendarAlt />
                                 </Button>
                               </OverlayTrigger>
                             )}
@@ -590,6 +659,12 @@ export default function AppointmentManager() {
                 Cancelar Cita
               </>
             )}
+            {modalMode === "reschedule" && (
+              <>
+                <FaCalendarAlt className="me-2" />
+                Reprogramar Cita
+              </>
+            )}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -632,7 +707,7 @@ export default function AppointmentManager() {
                 <Col md={4}>
                   <Card className="border-0 bg-light">
                     <Card.Body>
-                      <h6 className="text-muted mb-2">Fecha y Hora</h6>
+                      <h6 className="text-muted mb-2">Fecha y Hora {modalMode === "reschedule" && "(Actual)"}</h6>
                       <p className="mb-0">
                         {formatFecha(selectedCita.fechaHora)} - {formatHora(selectedCita.fechaHora)}
                       </p>
@@ -743,6 +818,59 @@ export default function AppointmentManager() {
                 </Alert>
               )}
 
+              {modalMode === "reschedule" && (
+                <>
+                  <Alert variant="info">
+                    <FaCalendarAlt className="me-2" />
+                    Seleccione la nueva fecha y hora para la cita. El estado cambiará a "Reprogramada".
+                  </Alert>
+
+                  <Form>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Nueva Fecha</Form.Label>
+                      <Form.Control
+                        type="date"
+                        value={rescheduleDate}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => {
+                          setRescheduleDate(e.target.value)
+                          setRescheduleTime("")
+                          if (e.target.value) {
+                            loadRescheduleSlots(e.target.value)
+                          }
+                        }}
+                      />
+                    </Form.Group>
+
+                    {rescheduleDate && (
+                      <Form.Group className="mb-3">
+                        <Form.Label>
+                          Hora Disponible
+                          {loadingSlots && <Spinner size="sm" animation="border" className="ms-2" />}
+                        </Form.Label>
+                        <Form.Select
+                          value={rescheduleTime}
+                          onChange={(e) => setRescheduleTime(e.target.value)}
+                          disabled={loadingSlots || availableSlots.length === 0}
+                        >
+                          <option value="">Seleccione una hora</option>
+                          {availableSlots.map((slot, idx) => (
+                            <option key={idx} value={slot.horaInicio}>
+                              {slot.horaInicio} - {slot.horaFin} {slot.box && `(${slot.box})`}
+                            </option>
+                          ))}
+                        </Form.Select>
+                        {rescheduleDate && availableSlots.length === 0 && !loadingSlots && (
+                          <Form.Text className="text-danger">
+                            No hay horarios disponibles para esta fecha
+                          </Form.Text>
+                        )}
+                      </Form.Group>
+                    )}
+                  </Form>
+                </>
+              )}
+
               {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
               {success && <Alert variant="success" className="mt-3">{success}</Alert>}
             </>
@@ -799,6 +927,23 @@ export default function AppointmentManager() {
                 <>
                   <FaTimes className="me-2" />
                   Cancelar Cita
+                </>
+              )}
+            </Button>
+          )}
+
+          {modalMode === "reschedule" && (
+            <Button
+              variant="primary"
+              onClick={handleRescheduleCita}
+              disabled={loading || !rescheduleDate || !rescheduleTime}
+            >
+              {loading ? (
+                <Spinner size="sm" animation="border" />
+              ) : (
+                <>
+                  <FaCalendarAlt className="me-2" />
+                  Reprogramar Cita
                 </>
               )}
             </Button>

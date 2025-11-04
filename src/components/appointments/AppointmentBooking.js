@@ -283,20 +283,15 @@ export default function AppointmentBooking() {
       console.log("📥 Usuario recibido:", resultado.usuario)
       console.log("📥 Paciente ID recibido:", resultado.paciente_id)
       
-      if (resultado.usuario && resultado.paciente_id) {
+      if (resultado.usuario && (resultado.usuario.id)) {
         setTempUserData(resultado.usuario)
-        setTempPacienteId(resultado.paciente_id)
-        
-        console.log(" Estados actualizados:")
-        console.log("   - tempUserData:", resultado.usuario)
-        console.log("   - tempPacienteId:", resultado.paciente_id)
-        
+        setTempPacienteId(resultado.paciente_id) // compat si lo necesitas en otros flujos
         setShowRutModal(false)
         
         //  Llamar directamente pasando el paciente_id como parámetro
         setTimeout(async () => {
-          console.log("🚀 Iniciando agendamiento con paciente_id:", resultado.paciente_id)
-          await agendarCitaDirecta(resultado.paciente_id)
+          // pasa el ID de usuario (no paciente)
+          await agendarCitaDirecta(resultado.usuario.id)
         }, 100)
       } else {
         console.error(" Datos incompletos:", resultado)
@@ -311,7 +306,7 @@ export default function AppointmentBooking() {
   }
 
   //  Modificar agendarCitaDirecta para aceptar pacienteIdParam
-  const agendarCitaDirecta = async (pacienteIdParam = null) => {
+  const agendarCitaDirecta = async (usuarioIdParam = null) => {
     setLoading(true)
     setError("")
     try {
@@ -354,33 +349,29 @@ export default function AppointmentBooking() {
         prioridad: "Normal"
       }
 
-      //  Determinar el paciente con prioridad al parámetro
-      let pacienteId = null
-      
-      if (pacienteIdParam) {
-        // Parámetro directo (cuando viene desde handleRutSubmit)
-        pacienteId = Number(pacienteIdParam)
-        console.log(" Usando paciente_id del parámetro:", pacienteId)
+      // determinar usuario (no paciente)
+      let usuarioId = null
+      if (usuarioIdParam) {
+        usuarioId = Number(usuarioIdParam)
       } else if (user && userData) {
-        // Usuario autenticado
-        pacienteId = userData.pacienteId || userData.id
-        console.log(" Usuario autenticado - paciente_id:", pacienteId)
+        usuarioId = Number(userData?.id)
+      } else if (tempUserData?.id) {
+        usuarioId = Number(tempUserData.id)
       } else if (tempPacienteId) {
-        // Usuario temporal (sin login) - desde estado
-        pacienteId = Number(tempPacienteId)
-        console.log(" Usuario temporal - paciente_id desde estado:", pacienteId)
+        // compat si solo tienes paciente_id, intenta usarlo como usuario_id cuando coincide (OneToOne)
+        usuarioId = Number(tempPacienteId)
       }
-      
-      if (!pacienteId) {
-        console.error(" Estados actuales:")
+
+      if (!usuarioId) {
         console.error("   - user:", user)
         console.error("   - userData:", userData)
+        console.error("   - tempUserData:", tempUserData)
         console.error("   - tempPacienteId:", tempPacienteId)
-        console.error("   - pacienteIdParam:", pacienteIdParam)
-        throw new Error("No se pudo identificar al paciente")
+        console.error("   - usuarioIdParam:", usuarioIdParam)
+        throw new Error("No se pudo identificar al usuario")
       }
-      
-      citaData.paciente = pacienteId
+
+      citaData.usuario = usuarioId
 
       console.log("📤 Datos de cita a enviar:", citaData)
 
@@ -398,7 +389,14 @@ export default function AppointmentBooking() {
       setRut("")
     } catch (err) {
       console.error(" Error agendando cita:", err)
-      const errorMsg = err?.fechaHora?.[0] || err?.paciente?.[0] || err?.usuario_id?.[0] || err?.error || err?.message || "Error al agendar la cita"
+      const errorMsg =
+        err?.usuario?.[0] ||
+        err?.fechaHora?.[0] ||
+        err?.paciente?.[0] ||
+        err?.usuario_id?.[0] ||
+        err?.error ||
+        err?.message ||
+        "Error al agendar la cita"
       setError(errorMsg)
     } finally {
       setProcessing(false)
