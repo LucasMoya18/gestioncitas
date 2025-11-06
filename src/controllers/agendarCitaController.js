@@ -5,29 +5,56 @@ import { API_URL, api, getAuthHeaders } from '../config/api';
 
 // Normaliza errores de API
 function normalizeError(e, fallback = "Error de solicitud") {
-  // Intenta extraer el primer mensaje útil del backend
-  const data = e?.response?.data;
-  let msg =
-    data?.non_field_errors?.[0] ||
-    data?.detail ||
-    data?.error ||
-    // si es un dict de errores de campo, toma el primero
-    (data && typeof data === 'object'
-      ? (() => {
-          const firstKey = Object.keys(data)[0];
-          const val = data[firstKey];
-          if (Array.isArray(val) && val.length) return `${firstKey}: ${val[0]}`;
-          if (typeof val === 'string') return `${firstKey}: ${val}`;
-          return null;
-        })()
-      : null) ||
-    e?.message ||
-    fallback;
-  const err = new Error(msg);
-  err.response = e?.response;
-  err.status = e?.response?.status;
-  err.data = data;
-  return err;
+  try {
+    const resp = e?.response;
+    const data = resp?.data;
+    let candidates = [];
+
+    if (data) {
+        // Prioridades comunes en DRF
+        if (Array.isArray(data)) candidates.push(data[0]);
+        if (typeof data === 'string') candidates.push(data);
+        if (data.detail) candidates.push(data.detail);
+        if (data.error) candidates.push(data.error);
+        if (data.non_field_errors && data.non_field_errors.length) candidates.push(data.non_field_errors[0]);
+
+        // Primer campo con mensaje
+        if (typeof data === 'object' && !Array.isArray(data)) {
+          for (const k of Object.keys(data)) {
+            const v = data[k];
+            if (Array.isArray(v) && v.length) {
+              candidates.push(`${k}: ${v[0]}`);
+              break;
+            } else if (typeof v === 'string') {
+              candidates.push(`${k}: ${v}`);
+              break;
+            }
+          }
+        }
+    }
+
+    // Mensaje del propio error
+    if (e?.message) candidates.push(e.message);
+
+    // Fallback final
+    candidates.push(fallback);
+
+    // Filtrar vacíos y asegurar string
+    let msg = candidates.find(m => m && typeof m === 'string') || fallback;
+
+    // Limpiar mensaje (quitar saltos si son muchos)
+    msg = String(msg).trim().replace(/\s+/g, ' ');
+
+    const err = new Error(msg);
+    err.status = resp?.status;
+    err.data = data;
+    err.raw = e;
+    return err;
+  } catch (inner) {
+    const err = new Error(fallback);
+    err.raw = e;
+    return err;
+  }
 }
 
 // Actualizar datos del usuario (edición de médico)
@@ -136,22 +163,12 @@ export const agendarCitaController = {
   async getCitas() {
     try {
       const headers = getAuthHeaders();
-      
       if (!headers.Authorization) {
         throw new Error('No hay token de autenticación. Por favor inicie sesión.');
       }
-
-      console.log(' Obteniendo citas con headers:', headers);
-      
-      const res = await api.get("/citas/");
+      const res = await api.get("/citas/", { headers });
       return res.data;
     } catch (e) {
-      console.error('getCitas error:', e.response?.data || e.message);
-      
-      if (e.response?.status === 401) {
-        throw new Error('Authentication credentials were not provided.');
-      }
-      
       throw normalizeError(e, "Error cargando citas");
     }
   },
@@ -260,6 +277,19 @@ export const agendarCitaController = {
     } catch (e) {
       console.error('Error reprogramando cita:', e?.response?.status, e?.response?.data);
       throw normalizeError(e, "Error reprogramando cita");
+    }
+  },
+
+  async getHorariosDisponibles(medicoId, medicoEspecialidadId, fecha) {
+    try {
+      const res = await api.post('/citas/horarios_disponibles/', {
+        medico_id: medicoId,
+        medico_especialidad_id: medicoEspecialidadId,
+        fecha: fecha
+      });
+      return res.data;
+    } catch (e) {
+      throw normalizeError(e, "Error obteniendo horarios disponibles");
     }
   },
 

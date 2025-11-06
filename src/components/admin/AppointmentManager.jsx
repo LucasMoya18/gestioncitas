@@ -199,27 +199,14 @@ export default function AppointmentManager() {
         return
       }
 
-      // Obtener medico_especialidad_id
       const medicoEspecialidadId = cita.medico_especialidad
 
-      const slotsResponse = await fetch(`http://127.0.0.1:8000/api/citas/horarios_disponibles/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          medico_id: medico.id,
-          medico_especialidad_id: medicoEspecialidadId,
-          fecha: fecha
-        })
-      })
-
-      if (!slotsResponse.ok) {
-        throw new Error('Error obteniendo horarios disponibles')
-      }
-
-      const slotsData = await slotsResponse.json()
+      const slotsData = await agendarCitaController.getHorariosDisponibles(
+        medico.id,
+        medicoEspecialidadId,
+        fecha
+      )
+      
       setAvailableSlots(slotsData.disponibles || [])
       
       if (slotsData.disponibles && slotsData.disponibles.length === 0) {
@@ -237,6 +224,67 @@ export default function AppointmentManager() {
   // Cargar slots disponibles cuando se selecciona una fecha para reprogramar
   const loadRescheduleSlots = async (fecha) => {
     await loadRescheduleSlotsWithDate(fecha, selectedCita)
+  }
+
+  const handleConfirmCita = async () => {
+    if (!selectedCita) return
+    
+    setLoading(true)
+    setError("")
+    try {
+      await agendarCitaController.updateCita(selectedCita.id, {
+        estado: 'Confirmada'
+      })
+      
+      setSuccess('Cita confirmada exitosamente')
+      await loadCitas()
+      setTimeout(() => { closeModal() }, 1000)
+    } catch (e) {
+      const msg = e?.detail || e?.message || "Error confirmando cita"
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpdateCita = async () => {
+    if (!selectedCita) return
+    
+    setLoading(true)
+    setError("")
+    try {
+      await agendarCitaController.updateCita(selectedCita.id, editForm)
+      
+      setSuccess('Cita actualizada exitosamente')
+      await loadCitas()
+      setTimeout(() => { closeModal() }, 1000)
+    } catch (e) {
+      const msg = e?.detail || e?.message || "Error actualizando cita"
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCancelCita = async () => {
+    if (!selectedCita) return
+    
+    setLoading(true)
+    setError("")
+    try {
+      await agendarCitaController.updateCita(selectedCita.id, {
+        estado: 'Cancelada'
+      })
+      
+      setSuccess('Cita cancelada exitosamente')
+      await loadCitas()
+      setTimeout(() => { closeModal() }, 1000)
+    } catch (e) {
+      const msg = e?.detail || e?.message || "Error cancelando cita"
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleRescheduleCita = async () => {
