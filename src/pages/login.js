@@ -199,14 +199,7 @@ export default function LoginPage() {
                     </Link>
                   </div>
 
-                  <div className="mt-4 p-3 bg-light rounded">
-                    <small className="text-muted">
-                      <strong>Datos de prueba:</strong><br/>
-                      <strong>Paciente:</strong> 12.345.678-9 / admin123<br/>
-                      <strong>Médico:</strong> (tu RUT de médico) / (tu contraseña)<br/>
-                      <strong>Admin:</strong> (tu RUT de admin) / (tu contraseña)
-                    </small>
-                  </div>
+                  
                 </Card.Body>
               </Card>
             </Col>
