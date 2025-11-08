@@ -173,6 +173,21 @@ export const agendarCitaController = {
     }
   },
 
+  // ✅ Nuevo método para obtener UNA cita específica por ID
+  async getCitaById(id) {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers.Authorization) {
+        throw new Error('No hay token de autenticación. Por favor inicie sesión.');
+      }
+      
+      const res = await api.get(`/citas/${id}/`, { headers });
+      return res.data;
+    } catch (e) {
+      throw normalizeError(e, "Error cargando cita");
+    }
+  },
+
   // ✅ Nuevo método para cargar TODAS las citas (solo admin)
   async getCitasAdmin() {
     try {
@@ -351,4 +366,15 @@ export const agendarCitaController = {
   },
 
   updateUsuario,
+
+  async getUsuarioById(id) {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers.Authorization) throw new Error('No autenticado');
+      const res = await api.get(`/usuarios/${id}/`, { headers });
+      return res.data;
+    } catch (e) {
+      throw normalizeError(e, "Error cargando usuario");
+    }
+  },
 };
