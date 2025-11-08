@@ -1,10 +1,23 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-//  Configuración centralizada de la API
-// export const API_URL = 'http://35.153.50.17:8000/api';
-// export const API_URL = 'http://127.0.0.1:8000/api';
-export const API_URL = 'https://proyecto-production-c22e.up.railway.app/api';
+//  Configuración centralizada de la API (múltiples endpoints)
+const API_URLS = {
+  aws: 'http://35.153.50.17:8000/api',
+  // railway: 'http://127.0.0.1:8000/api',
+  railway: 'https://proyecto-production-c22e.up.railway.app/api'
+};
+
+// helper para obtener la URL seleccionada (usa localStorage en cliente)
+const getApiUrlFromStorage = () => {
+  if (typeof window === 'undefined') return API_URLS.aws;
+  const env = localStorage.getItem('api_env') || 'aws';
+  return API_URLS[env] || API_URLS.aws;
+};
+
+// export dinámico (binding vivo) para compatibilidad con imports existentes
+export let API_URL = getApiUrlFromStorage();
+
 //  Función helper para obtener headers con autenticación
 export const getAuthHeaders = () => {
   const token = localStorage.getItem('token') || Cookies.get('token');
@@ -22,7 +35,7 @@ export const getAuthHeaders = () => {
   };
 };
 
-//  Instancia de axios configurada
+//  Instancia de axios configurada (baseURL inicial según selección)
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -30,9 +43,24 @@ export const api = axios.create({
   }
 });
 
+// Permite cambiar la env en tiempo de ejecución y actualizar axios y API_URL
+export const setApiEnv = (env) => {
+  if (typeof window === 'undefined') return;
+  if (!API_URLS[env]) return;
+  localStorage.setItem('api_env', env);
+  API_URL = API_URLS[env];          // actualiza binding exportado
+  api.defaults.baseURL = API_URLS[env];
+};
+
+// opcional: exponer urls actuales
+export const availableApiUrls = API_URLS;
+
 //  Interceptor para agregar token automáticamente a todas las peticiones
 api.interceptors.request.use(
   (config) => {
+    // Asegura baseURL actualizado en cada petición (por si cambió)
+    config.baseURL = getApiUrlFromStorage();
+
     const token = localStorage.getItem('token') || Cookies.get('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -50,7 +78,6 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       console.error(' 401 Unauthorized - Token inválido o expirado');
-      
     }
     return Promise.reject(error);
   }

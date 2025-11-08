@@ -6,6 +6,7 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { FaStethoscope, FaCalendarCheck, FaBell, FaUserMd, FaSignInAlt, FaUserPlus, FaSignOutAlt, FaCalendarPlus, FaClock, FaHospital } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import ApiToggle from '../components/ApiToggle'; // <<--- ADD
 
 export default function HomePage() {
   const [date, setDate] = useState(new Date());
@@ -43,6 +44,11 @@ export default function HomePage() {
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="ms-auto">
+              {/* coloca el toggle aquí */}
+              <div className="d-flex align-items-center me-3">
+                <ApiToggle />
+              </div>
+
               <Nav.Link href="#" className="text-dark fw-medium">Inicio</Nav.Link>
               <Nav.Link href="#" className="text-dark fw-medium">Servicios</Nav.Link>
               <Nav.Link href="#" className="text-dark fw-medium">Médicos</Nav.Link>

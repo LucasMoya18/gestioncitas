@@ -90,20 +90,14 @@ export default function Dashboard() {
     try {
       console.log(' Cargando citas...');
 
+      // ✅ Usar endpoint normal que ya filtra por usuario
       const response = await agendarCitaController.getCitas();
 
       console.log(' Citas cargadas:', response);
       
-      // Filtrar según rol
-      let citasFiltradas = response;
+      // ✅ NO filtrar aquí, el backend ya devuelve las citas correctas
+      setCitas(response || []);
       
-      if (isMedico && userData?.id) {
-        citasFiltradas = response.filter(c => c.medico === userData.id);
-      } else if (isPaciente && userData?.id) {
-        citasFiltradas = response.filter(c => c.paciente === userData.id);
-      }
-      
-      setCitas(citasFiltradas);
     } catch (error) {
       console.error('Error cargando citas:', error);
       

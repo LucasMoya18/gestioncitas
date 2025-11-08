@@ -173,6 +173,28 @@ export const agendarCitaController = {
     }
   },
 
+  // ✅ Nuevo método para cargar TODAS las citas (solo admin)
+  async getCitasAdmin() {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers.Authorization) {
+        throw new Error('No hay token de autenticación. Por favor inicie sesión.');
+      }
+      
+      console.log('📤 Solicitando citas administrativas...');
+      
+      // ✅ Usar la URL correcta: /citas/admin-todas/
+      const res = await api.get("/citas/admin-todas/", { headers });
+      
+      console.log(`✅ Citas administrativas cargadas: ${res.data?.length || 0}`);
+      
+      return res.data;
+    } catch (e) {
+      console.error('❌ Error cargando citas administrativas:', e.response?.data || e.message);
+      throw normalizeError(e, "Error cargando citas administrativas");
+    }
+  },
+
   async verificarRut(rut) {
     try {
       const res = await api.get(`/verificar-rut/?rut=${encodeURIComponent(rut)}`);
@@ -198,22 +220,26 @@ export const agendarCitaController = {
       // Normaliza payload a nombres reales del modelo DRF (fechaHora, usuario)
       const payload = {
         medico: citaData.medico ?? citaData.medico_id,
-        medico_especialidad:
-          citaData.medico_especialidad ??
-          citaData.medicoEspecialidad ??
-          citaData.medicoEspecialidadId,
-        usuario:
-          citaData.usuario ??
-          citaData.usuario_id ??
-          citaData.paciente ??             // compat
-          citaData.paciente_id,            // compat
-        fechaHora:
-          citaData.fechaHora ??
-          citaData.fecha_hora ??           // compat
-          citaData.fecha,
+        medico_especialidad: citaData.medico_especialidad ?? citaData.medicoEspecialidad ?? citaData.medicoEspecialidadId,
+        usuario: citaData.usuario ?? citaData.usuario_id ?? citaData.paciente ?? citaData.paciente_id,
+        fechaHora: citaData.fechaHora ?? citaData.fecha_hora ?? citaData.fecha,
         descripcion: citaData.descripcion ?? '',
         prioridad: citaData.prioridad ?? 'Normal',
       };
+
+      // Si no hay usuario en el payload, tomar el id del user guardado en localStorage/Cookies
+      if (!payload.usuario && typeof window !== 'undefined') {
+        try {
+          const rawUser = localStorage.getItem('user') || Cookies.get('user');
+          if (rawUser) {
+            const parsed = typeof rawUser === 'string' ? JSON.parse(rawUser) : rawUser;
+            // compat: estructuras distintas
+            payload.usuario = parsed?.id || parsed?.usuario?.id || parsed?.user?.id || null;
+          }
+        } catch (e) {
+          console.warn('No se pudo parsear user desde storage', e);
+        }
+      }
 
       Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
 

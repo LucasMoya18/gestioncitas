@@ -70,7 +70,8 @@ export default function AppointmentManager() {
     setLoading(true)
     setError("")
     try {
-      const data = await agendarCitaController.getCitas()
+      // ✅ Usar controlador para cargar citas administrativas
+      const data = await agendarCitaController.getCitasAdmin()
       setCitas(data || [])
     } catch (e) {
       setError("Error cargando citas: " + (e?.message || "Error desconocido"))

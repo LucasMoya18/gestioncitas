@@ -1,11 +1,5 @@
-import axios from 'axios';
 import { normalizeRutWithDash } from '../utils/rutFormatter';
-import { API_URL } from '../config/api';
-
-const api = axios.create({ 
-  baseURL: API_URL, 
-  headers: { "Content-Type": "application/json" } 
-});
+import { api } from '../config/api';
 
 async function registerPaciente(formData) {
   const payload = {

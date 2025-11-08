@@ -7,6 +7,7 @@ async function loginUsuario(rut, password) {
   try {
     const rutToSend = normalizeRutWithDash(rut);
     console.log("📤 Enviando login con RUT:", rutToSend);
+    console.log("Api url utilizada:", API_URL);
     
     const res = await axios.post(`${API_URL}/login/`, { 
       rut: rutToSend, 
