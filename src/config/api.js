@@ -3,9 +3,8 @@ import Cookies from 'js-cookie';
 
 //  Configuración centralizada de la API (múltiples endpoints)
 const API_URLS = {
-  aws: 'http://35.153.50.17:8000/api',
-  // railway: 'http://127.0.0.1:8000/api',
-  railway: 'https://proyecto-production-c22e.up.railway.app/api'
+  aws: 'http://18.235.239.93:8000/api',
+  railway: 'http://18.235.239.93:8000/api'
 };
 
 // helper para obtener la URL seleccionada (usa localStorage en cliente)
