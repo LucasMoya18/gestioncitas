@@ -377,4 +377,15 @@ export const agendarCitaController = {
       throw normalizeError(e, "Error cargando usuario");
     }
   },
+
+  async getKpis() {
+    try {
+      const token = localStorage.getItem('token') || Cookies.get('token')
+      const headers = token ? { Authorization: 'Bearer ' + token } : {}
+      const res = await api.get('/kpis/', { headers })
+      return res.data
+    } catch (e) {
+      throw normalizeError(e, "Error obteniendo KPIs")
+    }
+  },
 };

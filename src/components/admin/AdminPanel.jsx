@@ -2,13 +2,14 @@
 
 import React, { useEffect, useState } from "react"
 import { Container, Card, Button, Table, Form, Modal, Row, Col, Alert, Spinner, InputGroup, ButtonGroup, Nav, Tab } from "react-bootstrap"
-import { FaPlus, FaTrash, FaEdit, FaMinus, FaClock, FaClinicMedical, FaStethoscope, FaCalendarCheck } from "react-icons/fa"
+import { FaPlus, FaTrash, FaEdit, FaMinus, FaClock, FaClinicMedical, FaStethoscope, FaCalendarCheck, FaChartBar } from "react-icons/fa"
 import { agendarCitaController } from "../../controllers/agendarCitaController"
 import { useAuth } from "../../context/AuthContext"
 import MedScheduleManager from "./MedScheduleManager"
 import BoxManager from "./BoxManager"
 import SpecialtyManager from "./SpecialtyManager"
 import AppointmentManager from "./AppointmentManager"
+import KpiWidget from "./KPIWidget"
 import { useConfirm } from "../../utils/confirm";
 import { formatRut, normalizeRutWithDash } from "../../utils/rutFormatter"
 
@@ -284,6 +285,14 @@ export default function AdminPanel() {
               Gestión de Citas
             </Nav.Link>
           </Nav.Item>
+
+          <Nav.Item>
+            <Nav.Link eventKey="kpis">
+              <FaChartBar className="me-2" />
+              KPIs
+            </Nav.Link>
+          </Nav.Item>
+
           <Nav.Item>
             <Nav.Link eventKey="especialidades">
               <FaStethoscope className="me-2" />
@@ -301,6 +310,10 @@ export default function AdminPanel() {
         <Tab.Content>
           <Tab.Pane eventKey="citas">
             <AppointmentManager />
+          </Tab.Pane>
+
+          <Tab.Pane eventKey="kpis">
+            <KpiWidget />
           </Tab.Pane>
 
           <Tab.Pane eventKey="especialidades">
